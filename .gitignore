@@ -9,3 +9,4 @@
 /target
 .omc/state/
 .claude/scheduled_tasks.lock
+.beads.gate.lock
