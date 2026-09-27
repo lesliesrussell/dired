@@ -1,2 +1,3 @@
 {"id":"int-3fe85ffdcd4ed76be081792434fa9416","kind":"field_change","created_at":"2026-09-27T16:14:27.034935Z","actor":"Leslie Russell","issue_id":"dired-7qs","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
 {"id":"int-6805f7a136a2259088e0cbfeb992f881","kind":"field_change","created_at":"2026-09-27T16:36:10.11689Z","actor":"Leslie Russell","issue_id":"dired-7gc","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
+{"id":"int-9a0b1e19ad6a80c533312f6b51f2a210","kind":"field_change","created_at":"2026-09-27T17:21:19.752693Z","actor":"Leslie Russell","issue_id":"dired-7yu","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
