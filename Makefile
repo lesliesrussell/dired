@@ -1,6 +1,9 @@
 # dired-7gc
 # dired-7yu
 PREFIX ?= /usr/local
+# dired-9m8
+# zsh passes `PREFIX=~/.local` through unexpanded; expand a leading ~ here.
+override PREFIX := $(patsubst ~/%,$(HOME)/%,$(patsubst ~,$(HOME),$(PREFIX)))
 BINDIR ?= $(PREFIX)/bin
 CARGO ?= cargo
 DATADIR ?= $(PREFIX)/share/dired

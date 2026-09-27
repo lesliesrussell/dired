@@ -5,7 +5,7 @@ A standalone terminal directory editor built on Emacs Dired's interaction model:
 
 ```sh
 make install                    # builds release, installs to /usr/local/bin/dired
-make install PREFIX=~/.local    # or any prefix (DESTDIR is honored for packaging)
+make install PREFIX=~/.local    # or any prefix; ~ is expanded (DESTDIR is honored for packaging)
 make uninstall                  # same PREFIX as install
 make check                      # tests + clippy
 dired [PATH]
