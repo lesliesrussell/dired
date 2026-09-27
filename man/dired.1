@@ -1,0 +1,986 @@
+.\" dired-ji3
+.\" Manual page for dired, a terminal directory editor.
+.Dd September 27, 2026
+.Dt DIRED 1
+.Os
+.Sh NAME
+.Nm dired
+.Nd terminal directory editor with the Emacs Dired interaction model
+.Sh SYNOPSIS
+.Nm
+.Op Ar path
+.Nm
+.Fl \-check\-config
+.Nm
+.Fl h | \-help
+.Nm
+.Fl V | \-version
+.Sh DESCRIPTION
+.Nm
+shows a directory as a buffer of lines, one per entry.
+A cursor, called
+.Em point ,
+moves between lines.
+Entries are
+.Em marked
+to select them, and commands then act on every marked entry at once:
+copy, move, rename, change mode, delete, or run a program.
+When nothing is marked, a command acts on the entry at point.
+.Pp
+Every destructive operation is first shown in a
+.Em preview buffer
+that lists each source, destination, and problem, and nothing changes
+until the preview is confirmed.
+Deletion moves files to the system trash by default.
+Completed operations are recorded in a journal and can usually be undone.
+.Pp
+If
+.Ar path
+is a directory,
+.Nm
+opens it.
+If it is a file, its directory is opened with point on the file.
+The default is the current working directory.
+.Pp
+Large directories are listed immediately: names appear first and
+metadata (size, time, mode) is filled in asynchronously.
+The interface never blocks while directories are read, operations run,
+or programs execute.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl \-check\-config
+Load the configuration file, print every problem found, and exit.
+The exit status is 0 if the configuration is clean, 1 otherwise.
+.It Fl h , Fl \-help
+Print a usage summary and exit.
+.It Fl V , Fl \-version
+Print the version and exit.
+.El
+.Sh KEY NOTATION
+Keys are written in Emacs notation.
+.Cm C\-x
+means Control and
+.Cm x
+together.
+.Cm M\-x
+means Meta (Alt or Option) and
+.Cm x ;
+pressing
+.Cm ESC
+followed by
+.Cm x
+is equivalent.
+.Cm C\-x d
+is the two-key sequence
+.Cm C\-x
+followed by
+.Cm d .
+.Cm RET ,
+.Cm TAB ,
+.Cm DEL ,
+.Cm SPC ,
+and
+.Cm ESC
+are Return, Tab, Backspace, Space, and Escape.
+Uppercase letters are distinct commands.
+.Pp
+While a prefix key such as
+.Cm C\-x
+or
+.Cm %
+is pending, the status line lists the keys that may follow it.
+.Sh THE DISPLAY
+Each entry line begins with three state columns:
+.Bl -tag -width Ds -offset indent
+.It Sy >
+The line is point.
+.It Sy *
+The entry is marked.
+.It Sy D
+The entry is flagged for deletion.
+.It Sy \&!
+The last operation on the entry failed; the error follows the name.
+.It Sy ~
+The name has been edited and not yet committed (Wdired mode).
+.El
+.Pp
+These glyphs are configurable, and state is never shown by color alone.
+They are followed by the mode, size, modification time, and name.
+On narrow terminals the mode, time, and size columns are dropped, in
+that order, before names are truncated.
+A suffix after the name gives the type:
+.Sq /
+directory,
+.Sq @
+symbolic link (followed by
+.Sq -> Ar target ) ,
+.Sq @/
+link to a directory,
+.Sq *
+executable,
+.Sq |
+FIFO,
+.Sq =
+socket.
+The first line,
+.Sq .. ,
+is the parent directory and cannot be marked or modified.
+.Pp
+The status line shows the buffer name, the number of marked and
+flagged entries, the scan state
+.Po Sq scanning Ar n ,
+.Sq stat Ar n Ns / Ns Ar total ,
+.Sq done ,
+or an error
+.Pc ,
+the active filter, and the sort order.
+The last line is the echo area, which shows messages and becomes the
+minibuffer when a command prompts for input.
+.Sh MARKS AND OPERANDS
+Batch commands operate on the
+.Em visible
+marked entries of the current buffer; if none are marked, on the entry
+at point.
+Deletion is the exception: it acts on every flagged entry in the buffer,
+including hidden and filtered-out ones.
+.Pp
+A line carries exactly one state: unmarked, marked, or flagged.
+Marks are attached to the entry's identity, not its position, and
+survive refreshing, re-sorting, filtering, hiding, and renaming.
+Each directory buffer has its own marks, point, sort order, filter,
+hidden-file setting, and inserted subdirectories.
+.Sh COMMANDS
+The command name is shown in parentheses; every command can also be run
+with
+.Cm M\-x .
+.Ss Motion
+.Bl -tag -width "C-x C-f" -compact
+.It Cm C\-n , Cm n , Cm SPC , Cm <down>
+Next line
+.Pq Ic next\-line .
+.It Cm C\-p , Cm p , Cm <up>
+Previous line
+.Pq Ic previous\-line .
+.It Cm M\-< , Cm <home>
+First line
+.Pq Ic beginning\-of\-buffer .
+.It Cm M\-> , Cm <end>
+Last line
+.Pq Ic end\-of\-buffer .
+.It Cm C\-v , Cm <next>
+Forward one screen
+.Pq Ic scroll\-up\-command .
+.It Cm M\-v , Cm <prior>
+Back one screen
+.Pq Ic scroll\-down\-command .
+.It Cm C\-s , Cm C\-r
+Incremental search forward or backward
+.Pq Ic isearch\-forward , Ic isearch\-backward .
+Point moves to the first name containing the text as it is typed.
+Case is ignored unless the text contains an uppercase letter.
+Within the search,
+.Cm C\-s
+and
+.Cm C\-r
+find the next and previous match,
+.Cm RET
+stays, and
+.Cm C\-g
+returns to where the search began.
+.It Cm j
+Prompt for a substring and move to the next entry whose name contains
+it, ignoring case
+.Pq Ic dired\-goto\-file .
+.El
+.Ss Visiting
+.Bl -tag -width "C-x C-f" -compact
+.It Cm RET , Cm f , Cm e
+Visit the entry at point
+.Pq Ic dired\-visit .
+Directories open in a directory buffer, or an existing buffer for that
+directory is selected.
+Files are passed to an opener; see
+.Sx OPENERS .
+.It Cm ^
+Visit the parent directory with point on the current one
+.Pq Ic dired\-up\-directory .
+.It Cm g
+Reread the directory asynchronously, keeping point on the same entry
+.Pq Ic revert\-buffer .
+.It Cm C\-x d
+Prompt for a directory and open it
+.Pq Ic dired\-open\-directory .
+.It Cm C\-x C\-f
+Prompt for a path; directories are opened and files visited
+.Pq Ic dired\-find\-file .
+.El
+.Ss Marking
+.Bl -tag -width "C-x C-f" -compact
+.It Cm m
+Mark the entry at point and move down
+.Pq Ic dired\-mark .
+.It Cm u
+Remove the mark or deletion flag (and any error annotation) at point and
+move down
+.Pq Ic dired\-unmark .
+.It Cm DEL
+Move up and unmark that line
+.Pq Ic dired\-unmark\-backward .
+.It Cm U
+Remove every ordinary mark in the buffer; deletion flags are kept
+.Pq Ic dired\-unmark\-all\-marks .
+.It Cm t
+Toggle marks on all visible entries; flagged entries are unchanged
+.Pq Ic dired\-toggle\-marks .
+.It Cm d
+Flag the entry at point for deletion and move down
+.Pq Ic dired\-flag\-file\-deletion .
+.It Cm % m
+Mark entries whose names match a regular expression
+.Pq Ic dired\-mark\-files\-regexp .
+.It Cm % u
+Unmark entries whose names match a regular expression
+.Pq Ic dired\-unmark\-files\-regexp .
+.It Cm % d
+Flag entries whose names match a regular expression
+.Pq Ic dired\-flag\-files\-regexp .
+.El
+.Pp
+The
+.Cm %
+commands test the regular expression against each visible entry's file
+name only, never its directory.
+The match is unanchored and case-sensitive; use
+.Sq ^
+and
+.Sq $
+to anchor and a leading
+.Sq (?i)
+to ignore case.
+Existing marks are kept, and a matching flagged entry becomes marked.
+The syntax is that of the Rust
+.Sy regex
+crate; see
+.Sx REGULAR EXPRESSIONS .
+.Ss File operations
+.Bl -tag -width "C-x C-f" -compact
+.It Cm C
+Copy the operands
+.Pq Ic dired\-do\-copy .
+.It Cm R
+Move or rename the operands
+.Pq Ic dired\-do\-rename .
+.It Cm M
+Change the mode of the operands to an octal value such as
+.Li 644
+.Pq Ic dired\-do\-chmod .
+.It Cm +
+Create a directory
+.Pq Ic dired\-create\-directory .
+This is the only operation performed without a preview.
+.It Cm x
+Preview and delete all flagged entries
+.Pq Ic dired\-do\-flagged\-delete .
+.It Cm % r , Cm % R
+Rename the operands by regular-expression replacement
+.Pq Ic dired\-do\-rename\-regexp .
+.It Cm C\-x C\-q
+Edit file names as text (Wdired)
+.Pq Ic wdired\-toggle\-edit .
+.It Cm C\-x u , Cm C\-/ , Cm C\-_
+Undo the most recent reversible operation
+.Pq Ic dired\-undo .
+.El
+.Pp
+For
+.Cm C
+and
+.Cm R
+the destination prompt starts at the current directory, and relative
+paths are resolved against it.
+An existing directory receives the operands under their own names.
+With a single operand, a path that does not exist becomes the new name.
+Several operands require an existing directory.
+Directories are copied recursively; symbolic links inside them are
+copied as links and never followed.
+.Pp
+A move between filesystems is performed as copy followed by delete; the
+preview marks it non-atomic, and the source is deleted only after its
+copy has completed.
+.Ss Programs and search
+.Bl -tag -width "C-x C-f" -compact
+.It Cm \&!
+Run a program on the operands
+.Pq Ic dired\-do\-shell\-command ;
+see
+.Sx RUNNING PROGRAMS .
+Output is collected in the
+.Sq *Shell Command Output*
+buffer.
+.It Cm &
+Like
+.Cm \&! ,
+but switch to an
+.Sq *Async Shell Command*
+buffer that shows output as it arrives
+.Pq Ic dired\-do\-async\-shell\-command .
+.It Cm A
+Search file contents with
+.Xr rg 1
+.Pq Ic dired\-search\-files\-content .
+The marked entries are searched, or the whole directory tree if none
+are marked.
+Matches are listed in a search buffer;
+.Cm RET
+on a match visits the file at that line.
+.El
+.Ss Inserted subdirectories
+.Bl -tag -width "C-x C-f" -compact
+.It Cm i
+Insert the directory at point below its line as an indented subtree
+.Pq Ic dired\-maybe\-insert\-subdir .
+Entries in the subtree can be marked and operated on like any other.
+Symbolic links to directories are not inserted unless
+.Cm follow_symlinks_on_insert
+is set, and never when they lead back to an ancestor.
+.It Cm $
+Collapse the inserted subtree at point, or the one containing point
+.Pq Ic dired\-hide\-subdir .
+.El
+.Ss View
+.Bl -tag -width "C-x C-f" -compact
+.It Cm s
+Cycle the sort order: name, natural, time (newest first), size (largest
+first), extension
+.Pq Ic dired\-sort\-toggle\-or\-edit .
+Directories are listed first unless changed with
+.Ic dired\-sort\-toggle\-dirs\-first .
+.It Cm /
+Show only entries whose names contain a substring, ignoring case; an
+empty string removes the filter
+.Pq Ic dired\-filter .
+.It Cm C\-x M\-o
+Show or hide dot files
+.Pq Ic dired\-toggle\-hidden .
+.El
+.Ss Buffers and general
+.Bl -tag -width "C-x C-f" -compact
+.It Cm b , Cm C\-x b
+Switch buffer with fuzzy completion
+.Pq Ic switch\-to\-buffer .
+.It Cm q
+Close the current buffer; closing the last one exits
+.Pq Ic quit\-window .
+In a preview, return to the directory without changes.
+.It Cm C\-x k
+Close a named buffer (default: the current one), asking first if it has
+uncommitted Wdired edits, a pending or running operation, or a running
+program
+.Pq Ic buffer\-kill .
+.It Cm \&? , Cm h , Cm C\-h m , Cm C\-h b , Cm <f1>
+Show every key binding and command
+.Pq Ic help\-for\-help .
+.It Cm M\-x
+Run a command by name with fuzzy completion
+.Pq Ic execute\-extended\-command .
+.It Cm C\-g
+Cancel
+.Pq Ic keyboard\-quit ;
+see
+.Sx CANCELLING .
+.It Cm C\-x C\-c
+Exit
+.Pq Ic save\-buffers\-kill\-terminal .
+.El
+.Ss Commands without default keys
+.Bl -tag -width Ds -compact
+.It Ic dired\-do\-flagged\-delete\-permanently
+Delete flagged entries without the trash.
+.It Ic dired\-do\-shell\-command\-in\-shell
+Run a command through the shell; see
+.Sx RUNNING PROGRAMS .
+.It Ic dired\-sort\-by\-name , Ic dired\-sort\-by\-natural , Ic dired\-sort\-by\-time , Ic dired\-sort\-by\-size , Ic dired\-sort\-by\-extension
+Select a sort order.
+.It Ic dired\-sort\-reverse
+Reverse the sort order.
+.It Ic dired\-sort\-toggle\-dirs\-first
+List directories first or mixed with files.
+.It Ic cycle\-theme
+Switch to the next built-in theme for this session.
+.It Ic dired\-reload\-config
+Reread the configuration file.
+.It Ic view\-diagnostics , Ic view\-messages
+Show configuration problems or the message history.
+.El
+.Sh PREVIEWS AND CONFLICTS
+Copy, move, rename, change-mode, and delete operations open a preview
+buffer listing each item as
+.Ar source No \(-> Ar destination
+with its state.
+While any conflict is undecided, the operation cannot run.
+.Bl -tag -width "x, y, C-c C-c" -offset indent
+.It Cm x , Cm y , Cm C\-c C\-c
+Execute.
+.It Cm q , Cm C\-g
+Cancel without changes.
+.It Cm n , Cm p
+Move between items.
+.It Cm o
+Overwrite the existing destination of this item.
+.It Cm s
+Skip this item.
+.It Cm r
+Prompt for a different destination for this item.
+.It Cm a
+Mark this item undecided again.
+.It Cm O , Cm S
+Overwrite or skip every undecided conflict where that is permitted.
+.It Cm D
+In a deletion preview, switch between trash and permanent deletion.
+.El
+.Pp
+The conflicts detected, and the resolutions each permits, are:
+.Bl -tag -width Ds -offset indent
+.It destination exists
+overwrite, skip, or rename.
+.It duplicate destination
+Two sources map to one destination: skip or rename.
+.It destination is inside source
+Copying or moving a directory into itself, including through symbolic
+links: skip.
+.It destination contains the source
+Replacing an ancestor of the source: skip.
+.It source and destination are the same
+skip.
+.It inaccessible
+The source cannot be read: skip.
+.El
+.Pp
+Overwriting requires typing
+.Li yes
+at a prompt stating how many destinations, and how many directories, will
+be replaced.
+The existing destination is renamed aside first, removed only after the
+new data is in place, and restored if the operation fails.
+.Pp
+After execution the preview shows each item as done, skipped, or failed
+with the reason.
+Failures do not stop unrelated items.
+.Sh DELETION
+.Cm d
+and
+.Cm % d
+only flag entries.
+.Cm x
+opens a preview of every flagged entry with the resolved backend and a
+count; confirming it moves the entries to the system trash (the macOS
+Trash, the freedesktop.org trash, or the Windows Recycle Bin).
+Directories are trashed with their contents.
+.Pp
+Permanent deletion, selected with
+.Cm D
+in the preview or with
+.Ic dired\-do\-flagged\-delete\-permanently ,
+requires typing
+.Li yes
+at a prompt stating the number of items and of directories removed
+recursively.
+Symbolic links are removed, never followed.
+If no trash is available the preview refuses to run unless
+.Cm trash_fallback
+is
+.Qq permanent .
+.Pp
+Entries that are deleted disappear from the buffer.
+Entries that fail keep their flag and show the error.
+.Sh RENAMING
+.Ss Wdired
+.Cm C\-x C\-q
+makes file names editable in place.
+Only the name portion of each line can change; metadata, state columns,
+.Sq .. ,
+and names that cannot be represented exactly as text are read-only.
+Printing characters insert at the cursor;
+.Cm DEL ,
+.Cm C\-d ,
+.Cm C\-k ,
+.Cm C\-a ,
+.Cm C\-e ,
+.Cm C\-f ,
+.Cm C\-b ,
+and the arrow keys edit and move within the name, and
+.Cm C\-n
+and
+.Cm C\-p
+move between lines.
+.Pp
+.Cm C\-c C\-c
+(or
+.Cm C\-x C\-q ,
+.Cm C\-x C\-s )
+validates the complete set of renames and opens a preview.
+Empty names,
+.Sq \&. ,
+.Sq .. ,
+names containing
+.Sq / ,
+two entries renamed to the same name, and a new name equal to an
+existing entry that is not itself renamed are reported and nothing is
+changed; editing continues.
+Cycles and chains such as
+.Sy a No \(-> Sy b , Sy b No \(-> Sy a
+are executed through temporary names in the same directory.
+Marks and flags follow renamed entries.
+.Cm C\-c C\-k
+discards all edits.
+.Ss Regular-expression rename
+.Cm % r
+prompts for a regular expression and a replacement, and renames each
+operand whose name matches by replacing the first match.
+In the replacement,
+.Li $0
+is the whole match,
+.Li $1 , $2 , ...
+are numbered groups,
+.Li $name
+is a named group, and
+.Li ${1}
+separates a group reference from following text.
+For example, from
+.Li ^IMG_(\ed+)
+to
+.Li photo\-$1
+renames
+.Pa IMG_0042.JPG
+to
+.Pa photo\-0042.JPG .
+.Pp
+Batch renames are all or nothing: items cannot be skipped individually.
+.Sh RUNNING PROGRAMS
+.Cm \&!
+and
+.Cm &
+split the command into words using shell-like quoting and run it
+directly with the operands as separate arguments, from the buffer's
+directory.
+No shell is involved, so file names are never interpreted and pipes,
+redirections, and variables in the command are passed literally.
+Operands are given relative to the directory; a name beginning with
+.Sq \-
+is passed as
+.Sq ./ Ns Ar name .
+.Bl -tag -width Ds -offset indent
+.It A word consisting of Sq *
+is replaced by all operands, and the program runs once:
+.Li tar czf out.tgz *
+.It A word consisting of Sq \&?
+runs the program once per operand, with the word replaced by it:
+.Li gzip \-k \&?
+.It Otherwise
+the operands are appended:
+.Li wc \-l
+.El
+.Pp
+.Ic dired\-do\-shell\-command\-in\-shell
+runs the command with
+.Ql /bin/sh \-c
+(see
+.Cm shell
+in
+.Sx CONFIGURATION )
+after the user types
+.Li yes .
+The operands are still passed as positional parameters, available as
+.Li \&"$@\&"
+(a
+.Sq *
+word is replaced by it) or
+.Li \&"$1\&"
+(a
+.Sq \&?
+word), and are never inserted into the command text.
+Output buffers are labeled
+.Sq [SHELL MODE] .
+.Pp
+In an output buffer
+.Cm C\-c C\-c
+or
+.Cm C\-g
+stops the program.
+.Sh MINIBUFFER
+.Bl -tag -width "M-p, M-n" -compact
+.It Cm RET
+Accept.
+.It Cm C\-g
+Cancel.
+.It Cm TAB
+Complete: paths asynchronously to the longest common prefix, commands
+and buffer names to the best fuzzy match.
+.It Cm M\-p , Cm M\-n
+Previous or next history entry; also
+.Cm <up>
+and
+.Cm <down> .
+.It Cm C\-a , Cm C\-e
+Beginning or end of line.
+.It Cm C\-f , Cm C\-b
+Forward or back one character.
+.It Cm C\-d , Cm DEL
+Delete forward or backward.
+.It Cm C\-k , Cm C\-u
+Delete to end or beginning of line.
+.It Cm C\-w , Cm M\-DEL
+Delete the previous word or path component.
+.El
+.Pp
+History is kept per kind of prompt and persists across sessions unless
+.Cm persist_history
+is false.
+.Sh CANCELLING
+.Cm C\-g
+cancels the first of the following that applies: the open prompt
+(an incremental search also restores point); a preview that has not run,
+which closes with nothing changed; a partially typed key sequence; a
+running task in the current buffer (a directory scan, a program, or the
+remaining items of an operation).
+.Sh UNDO
+.Ic dired\-undo
+reverses the most recent journaled operation that has not been undone:
+moves and renames are renamed back, copies are moved to the trash
+(unless they overwrote something), created directories are removed if
+empty, and modes are restored.
+Trashed files must be restored from the system trash; permanent
+deletions cannot be undone.
+Undo is best effort and reports steps that fail.
+.Sh REGULAR EXPRESSIONS
+Regular expressions follow the syntax of the Rust
+.Sy regex
+crate: no backreferences or look-around.
+Commonly used constructs:
+.Bl -tag -width "[^abc]" -compact -offset indent
+.It Li \&.
+any character
+.It Li \e.
+a literal dot; precede any special character with
+.Li \e
+to match it literally
+.It Li ^ , $
+start and end of the name
+.It Li * , + , \&?
+zero or more, one or more, zero or one of the preceding item
+.It Li {n,m}
+between n and m repetitions
+.It Li [abc] , [^abc]
+one of, or none of, the listed characters
+.It Li \ed , \ew , \es
+digit, word character, white space
+.It Li a|b
+either alternative
+.It Li (...)
+group, referenced as
+.Li $1
+in replacements
+.It Li (?i)
+at the start: ignore case
+.El
+.Pp
+Shell globs are not regular expressions: write
+.Li \e.txt$
+rather than
+.Li *.txt ,
+and
+.Li ^IMG_
+rather than
+.Li IMG_* .
+.Sh OPENERS
+Visiting a file uses the first
+.Cm [[opener]]
+rule whose
+.Cm extensions
+include the file's extension.
+Without a matching rule,
+.Ev VISUAL
+or
+.Ev EDITOR
+is run in the terminal, with
+.Ar +line
+when visiting a search match; otherwise
+.Xr open 1
+on macOS or
+.Xr xdg\-open 1
+elsewhere.
+While a program runs in the terminal the interface is suspended.
+.Sh CONFIGURATION
+The configuration file is TOML.
+Errors never prevent
+.Nm
+from starting; each problem is listed in the
+.Sq *Diagnostics*
+buffer and the affected setting keeps its default.
+A commented example is installed as
+.Pa share/dired/examples/config.toml
+under the installation prefix.
+.Bl -tag -width Ds
+.It Cm version No = Ar 1
+Configuration format version.
+.It Cm [display]
+.Bl -tag -width "show_hidden" -compact
+.It Cm show_hidden
+Show dot files (default true).
+.It Cm dirs_first
+List directories first (default true).
+.It Cm sort
+.Qq name ,
+.Qq natural ,
+.Qq time ,
+.Qq size ,
+or
+.Qq extension .
+.It Cm columns
+Metadata columns in order, from
+.Qq permissions ,
+.Qq size ,
+and
+.Qq mtime .
+.El
+.It Cm [theme]
+.Bl -tag -width "show_hidden" -compact
+.It Cm name
+.Qq default ,
+.Qq high-contrast ,
+.Qq mono ,
+.Qq nord ,
+.Qq gruvbox ,
+.Qq solarized-dark ,
+or
+.Qq dracula .
+.It Cm [theme.colors]
+.Ar role No = Qq Ar color
+sets the foreground of a role.
+.It Cm [theme.styles.\& Ns Ar role Ns Cm \&]
+Keys
+.Cm fg ,
+.Cm bg ,
+.Cm bold ,
+.Cm italic ,
+.Cm underline ,
+.Cm reversed ,
+.Cm dim .
+.It Cm [theme.glyphs]
+Keys
+.Cm focused ,
+.Cm marked ,
+.Cm flagged ,
+.Cm error ,
+.Cm changed .
+.El
+Roles are
+normal, directory, symlink, executable, special, marked, flagged, error,
+changed, header, dim, warning, conflict, success, matched, status,
+point, and prompt.
+Colors are ANSI names such as
+.Qq lightblue
+or
+.Qq # Ns Ar rrggbb ;
+hexadecimal colors are approximated by the nearest ANSI color unless
+.Ev COLORTERM
+indicates truecolor.
+.It Cm [[keymap]]
+Each entry has
+.Cm key
+(a key sequence in the notation above),
+optionally
+.Cm mode
+.Po
+.Qq global ,
+.Qq dired
+(default),
+.Qq wdired ,
+.Qq preview ,
+or
+.Qq text
+.Pc ,
+and exactly one of:
+.Bl -tag -width "command" -compact
+.It Cm command
+the name of a command.
+.It Cm exec
+an argument vector; the word
+.Li {file}
+runs the program once per operand, and
+.Li {files}
+expands to all operands.
+.It Cm plugin
+reserved for future use.
+.El
+Unknown commands and duplicate key sequences are reported.
+.It Cm [[opener]]
+.Cm extensions
+(list, case-insensitive; empty matches everything),
+.Cm command
+(argument vector with
+.Li {file}
+and
+.Li {line} ) ,
+and
+.Cm terminal
+(run in the terminal instead of detached).
+.It Cm [shell]
+.Cm shell :
+the interpreter for shell mode (default
+.Pa /bin/sh ) .
+.It Cm [search]
+.Cm command :
+argument vector for
+.Cm A ,
+to which the pattern and search roots are appended; it must produce
+.Ql rg \-\-json
+output.
+Default
+.Ql [\&"rg\&", \&"\-\-json\&", \&"\-e\&"] .
+.It Cm [safety]
+.Bl -tag -width "follow_symlinks_on_insert" -compact
+.It Cm trash_fallback
+.Qq refuse
+(default) or
+.Qq permanent .
+.It Cm follow_symlinks_on_insert
+Allow
+.Cm i
+on directory symlinks (default false).
+.It Cm persist_history
+Save minibuffer history (default true).
+.El
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width "XDG_CONFIG_HOME"
+.It Ev DIRED_CONFIG
+Path of the configuration file.
+.It Ev XDG_CONFIG_HOME
+Base configuration directory when
+.Ev DIRED_CONFIG
+is unset.
+.It Ev DIRED_STATE_DIR
+Directory for history, the journal, and diagnostics.
+.It Ev VISUAL , Ev EDITOR
+Program used to visit files without a matching opener.
+.It Ev NO_COLOR
+If set, use the
+.Qq mono
+theme.
+.It Ev COLORTERM
+If it contains
+.Qq truecolor
+or
+.Qq 24bit ,
+hexadecimal colors are rendered exactly.
+.It Ev HOME
+Expansion of
+.Sq ~
+in paths.
+.El
+.Sh FILES
+.Bl -tag -width Ds
+.It Pa $XDG_CONFIG_HOME/dired/config.toml
+Configuration; defaults to
+.Pa ~/.config/dired/config.toml .
+.It Pa history.json
+Minibuffer history, in the state directory.
+.It Pa journal.jsonl
+Operation journal, one JSON record per operation, in the state directory.
+.It Pa diagnostics.log
+Problems found in the last configuration load, in the state directory.
+.El
+.Pp
+The state directory is
+.Ev DIRED_STATE_DIR ,
+or
+.Pa $XDG_STATE_HOME/dired
+.Pq default Pa ~/.local/state/dired
+on Linux and
+.Pa ~/Library/Application Support/dired
+on macOS.
+.Nm
+never uses the network.
+.Sh EXIT STATUS
+.Ex -std
+With
+.Fl \-check\-config ,
+the status is 1 if any problem was found.
+An invalid option gives status 2.
+.Sh EXAMPLES
+Delete all log files, reviewing them first:
+.Bd -literal -offset indent
+% d  \e.log$  RET     flag matching entries
+x                     preview
+x                     move them to the trash
+.Ed
+.Pp
+Move this year's photos into a new directory:
+.Bd -literal -offset indent
++  2026  RET
+% m  (?i)^IMG_2026.*\e.(jpe?g|heic)$  RET
+R  2026/  RET
+x
+.Ed
+.Pp
+Rename camera files, then undo:
+.Bd -literal -offset indent
+% m  ^DSC  RET
+% r  ^DSC_(\ed+)  RET  holiday\-$1  RET
+x
+C\-x u
+.Ed
+.Pp
+Swap two file names in Wdired:
+.Bd -literal -offset indent
+C\-x C\-q      edit a to b and b to a
+C\-c C\-c      preview
+x
+.Ed
+.Pp
+Archive the marked files, and run a command once per file:
+.Bd -literal -offset indent
+!  tar czf archive.tgz *  RET
+!  gzip \-k ?  RET
+.Ed
+.Pp
+A configuration binding keys to a command and to an external program:
+.Bd -literal -offset indent
+version = 1
+
+[theme]
+name = "nord"
+
+[[keymap]]
+key = "C\-c s"
+command = "dired\-sort\-by\-size"
+
+[[keymap]]
+key = "C\-c d"
+exec = ["du", "\-sh", "{files}"]
+.Ed
+.Sh SEE ALSO
+.Xr open 1 ,
+.Xr rg 1 ,
+.Xr xdg\-open 1
+.Pp
+The Emacs manual, node
+.Dq Dired .
+.Sh STANDARDS
+The key bindings follow GNU Emacs Dired and Wdired where a standalone
+equivalent exists.
+There is no Vim mode.
+.Sh CAVEATS
+Undo is best effort and cannot restore data that an operation
+overwrote or deleted permanently.
+.Pp
+Batch commands ignore marked entries that are hidden or filtered out;
+the marked count in the status line includes them.
+.Pp
+Control characters in file names are displayed escaped (for example
+.Sq \en
+is shown for a newline), and the
+.Cm %
+commands match against the escaped form.
+Such names cannot be edited in Wdired.

@@ -14,6 +14,8 @@ jobs:
           components: clippy
       - run: cargo test --workspace --locked
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      # dired-ji3
+      - run: make man-lint
   audit:
     runs-on: ubuntu-latest
     steps:

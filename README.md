@@ -15,7 +15,7 @@ dired ~/notes/todo.md           # open its directory with point on that file
 dired --check-config            # validate your config file and exit
 ```
 
-Inside dired, press `?` for a list of every key and command, and `C-x C-c` to quit.
+Inside dired, press `?` for a list of every key and command, and `C-x C-c` to quit. After `make install`, `man dired` shows the full manual (the source is [`man/dired.1`](man/dired.1); preview it without installing using `man ./man/dired.1`).
 
 ---
 
