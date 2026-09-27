@@ -92,11 +92,85 @@ impl Default for Glyphs {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(default, deny_unknown_fields)]
 pub struct ThemeConfig {
-    /// `default`, `high-contrast`, or `mono`.
+    /// One of [`THEMES`].
     pub name: Option<String>,
-    /// Overrides: role → color name or `#rrggbb`.
+    /// Shorthand overrides: role → foreground color name or `#rrggbb`.
     pub colors: std::collections::BTreeMap<String, String>,
+    /// Full per-role style overrides, applied after `colors`.
+    pub styles: std::collections::BTreeMap<String, StyleSpec>,
     pub glyphs: Glyphs,
+}
+
+/// A style override. Unset fields keep the theme's value.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(default, deny_unknown_fields)]
+pub struct StyleSpec {
+    pub fg: Option<String>,
+    pub bg: Option<String>,
+    pub bold: Option<bool>,
+    pub italic: Option<bool>,
+    pub underline: Option<bool>,
+    pub reversed: Option<bool>,
+    pub dim: Option<bool>,
+}
+
+/// Built-in theme names.
+pub const THEMES: &[&str] =
+    &["default", "high-contrast", "mono", "nord", "gruvbox", "solarized-dark", "dracula"];
+
+/// Styleable roles.
+pub const STYLE_ROLES: &[&str] = &[
+    "normal", "directory", "symlink", "executable", "special", "marked", "flagged", "error",
+    "changed", "header", "dim", "warning", "conflict", "success", "matched", "status", "point",
+    "prompt",
+];
+
+/// Named colors accepted in addition to `#rrggbb`.
+pub const COLOR_NAMES: &[&str] = &[
+    "black", "red", "green", "yellow", "blue", "magenta", "cyan", "gray", "grey", "darkgray",
+    "darkgrey", "white", "lightred", "lightgreen", "lightyellow", "lightblue", "lightmagenta",
+    "lightcyan", "reset", "default",
+];
+
+pub fn is_valid_color(s: &str) -> bool {
+    let s = s.trim().to_lowercase();
+    match s.strip_prefix('#') {
+        Some(hex) => hex.len() == 6 && hex.chars().all(|c| c.is_ascii_hexdigit()),
+        None => COLOR_NAMES.contains(&s.as_str()),
+    }
+}
+
+fn validate_theme(t: &ThemeConfig, source: &str, diags: &mut Vec<Diagnostic>) {
+    if let Some(n) = &t.name {
+        if !THEMES.contains(&n.as_str()) {
+            diags.push(Diagnostic::error(
+                source,
+                format!("[theme] unknown theme `{n}` (known: {})", THEMES.join(", ")),
+            ));
+        }
+    }
+    let check_role = |role: &str, diags: &mut Vec<Diagnostic>, table: &str| {
+        if !STYLE_ROLES.contains(&role) {
+            diags.push(Diagnostic::error(source, format!("[theme.{table}] unknown role `{role}`")));
+        }
+    };
+    let check_color = |c: &str, at: String, diags: &mut Vec<Diagnostic>| {
+        if !is_valid_color(c) {
+            diags.push(Diagnostic::error(source, format!("{at}: invalid color `{c}` (use a name or #rrggbb)")));
+        }
+    };
+    for (role, c) in &t.colors {
+        check_role(role, diags, "colors");
+        check_color(c, format!("[theme.colors] {role}"), diags);
+    }
+    for (role, st) in &t.styles {
+        check_role(role, diags, "styles");
+        for (k, c) in [("fg", &st.fg), ("bg", &st.bg)] {
+            if let Some(c) = c {
+                check_color(c, format!("[theme.styles.{role}] {k}"), diags);
+            }
+        }
+    }
 }
 
 /// A user key binding. Exactly one of `command`, `exec`, `plugin` is set.
@@ -281,10 +355,12 @@ impl Config {
                 n == 1
             })
             .collect();
+        let theme: ThemeConfig = section(&table, "theme", source, &mut diags);
+        validate_theme(&theme, source, &mut diags);
         let config = Config {
             version,
             display: section(&table, "display", source, &mut diags),
-            theme: section(&table, "theme", source, &mut diags),
+            theme,
             keymap,
             opener: list(&table, "opener", source, &mut diags),
             shell: section(&table, "shell", source, &mut diags),
@@ -334,6 +410,22 @@ pub fn state_dir() -> Option<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn example_config_is_clean() {
+        let (c, d) = Config::parse(include_str!("../../../examples/config.toml"), "examples/config.toml");
+        assert!(d.is_empty(), "{d:?}");
+        assert!(!c.keymap.is_empty() && !c.theme.styles.is_empty());
+    }
+
+    #[test]
+    fn theme_validation() {
+        let (_, d) = Config::parse(
+            "version = 1\n[theme]\nname = \"nope\"\ncolors = { directory = \"#12345g\", bogus = \"red\" }\n[theme.styles.point]\nbg = \"#223344\"\nbold = true\n",
+            "t",
+        );
+        assert_eq!(d.len(), 3, "{d:?}");
+    }
 
     #[test]
     fn errors_are_nonfatal() {

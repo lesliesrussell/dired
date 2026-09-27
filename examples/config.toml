@@ -1,0 +1,159 @@
+# dired-7yu
+# ─────────────────────────────────────────────────────────────────────────────
+#  dired — example configuration
+#
+#  Copy to ~/.config/dired/config.toml (or point $DIRED_CONFIG at it), then:
+#      dired --check-config          # validate without starting the UI
+#      M-x dired-reload-config       # apply edits while running
+#      M-x cycle-theme               # preview every built-in theme live
+#
+#  Problems never stop dired: they are listed in the *Diagnostics* buffer.
+# ─────────────────────────────────────────────────────────────────────────────
+
+version = 1
+
+# ── Display ──────────────────────────────────────────────────────────────────
+[display]
+show_hidden = true               # toggle at runtime with C-x M-o (marks survive)
+dirs_first  = true
+sort        = "natural"          # name | natural | time | size | extension  (cycle: s)
+# Metadata columns, left to right. On narrow terminals they collapse
+# (permissions first, then mtime, then size) before names are truncated.
+columns     = ["permissions", "size", "mtime"]
+
+# ── Theme ────────────────────────────────────────────────────────────────────
+# Built-ins: default, high-contrast, mono, nord, gruvbox, solarized-dark, dracula.
+# Hex colors render exactly on truecolor terminals (COLORTERM=truecolor) and are
+# mapped to the nearest ANSI color elsewhere. NO_COLOR forces `mono`.
+[theme]
+name = "nord"
+
+# Shorthand: role → foreground color.
+[theme.colors]
+executable = "#a3be8c"
+special    = "#4c566a"
+
+# Full control per role: fg, bg, bold, italic, underline, reversed, dim.
+# Roles: normal directory symlink executable special marked flagged error
+#        changed header dim warning conflict success matched status point prompt
+[theme.styles.point]             # the line at point
+fg   = "#eceff4"
+bg   = "#434c5e"
+bold = true
+
+[theme.styles.status]            # the mode line
+fg   = "#2e3440"
+bg   = "#88c0d0"
+bold = true
+
+[theme.styles.marked]
+fg        = "#ebcb8b"
+bold      = true
+underline = true
+
+[theme.styles.flagged]
+fg     = "#bf616a"
+bold   = true
+italic = true
+
+[theme.styles.header]            # directory header line and section titles
+fg        = "#81a1c1"
+bold      = true
+underline = true
+
+# State is always shown by glyphs as well as color (accessibility).
+[theme.glyphs]
+focused = "▸"
+marked  = "●"
+flagged = "✗"
+error   = "!"
+changed = "✎"                    # edited name in Wdired (C-x C-q)
+
+# ── Key bindings ─────────────────────────────────────────────────────────────
+# mode: global | dired | wdired | preview | text   (default: dired)
+# Bind exactly one of:
+#   command = "<name>"           any M-x command (see `?` for the full list)
+#   exec    = [argv…]            external program; {file} runs once per operand,
+#                                {files} passes all operands. Operands are the
+#                                marked entries, else the entry at point. Values
+#                                are passed as argv — never through a shell.
+#   plugin  = "<name>"           reserved for a future plugin runtime
+
+[[keymap]]
+mode    = "global"
+key     = "C-c T"
+command = "cycle-theme"
+
+[[keymap]]
+key     = "C-c s"
+command = "dired-sort-by-size"
+
+[[keymap]]
+key     = "C-c t"
+command = "dired-sort-by-time"
+
+[[keymap]]
+key     = "C-c r"
+command = "dired-sort-reverse"
+
+[[keymap]]
+key     = "C-c ."
+command = "dired-toggle-hidden"
+
+[[keymap]]
+key     = "C-c u"
+command = "dired-undo"
+
+[[keymap]]
+key  = "C-c d"                   # disk usage of the operands
+exec = ["du", "-sh", "{files}"]
+
+[[keymap]]
+key  = "C-c w"                   # line counts
+exec = ["wc", "-l", "{files}"]
+
+[[keymap]]
+key  = "C-c z"                   # archive marked files into the current directory
+exec = ["tar", "-czf", "dired-archive.tar.gz", "{files}"]
+
+[[keymap]]
+key  = "C-c g"                   # recent history of each file
+exec = ["git", "log", "--oneline", "-5", "--", "{file}"]
+
+[[keymap]]
+key  = "C-c o"                   # reveal in Finder (Linux: ["xdg-open", "."])
+exec = ["open", "-R", "{file}"]
+
+# ── Openers (RET / f on a file, RET on a search match) ───────────────────────
+# First matching rule wins. `{file}` is the path, `{line}` the match line (the
+# argument is dropped when there is no line). terminal = true suspends the UI.
+# Without a matching rule: $VISUAL / $EDITOR in the terminal, else open/xdg-open.
+
+[[opener]]
+extensions = ["png", "jpg", "jpeg", "gif", "webp", "svg", "pdf", "mp4", "mov"]
+command    = ["open", "{file}"]  # Linux: ["xdg-open", "{file}"]
+
+[[opener]]
+extensions = ["rs", "toml", "md", "txt", "json", "yaml", "yml", "py", "js", "ts", "sh", "c", "h", "go"]
+command    = ["vim", "+{line}", "{file}"]   # or nvim / hx / emacs -nw / micro
+terminal   = true
+
+# ── Shell mode ───────────────────────────────────────────────────────────────
+# Only used by M-x dired-do-shell-command-in-shell (opt-in, labeled [SHELL MODE],
+# confirmed by typing `yes`). Files are passed as "$@", never spliced into the
+# command string. Plain ! and & never use a shell.
+[shell]
+shell = "/bin/sh"
+
+# ── Content search (A) ───────────────────────────────────────────────────────
+# argv prefix; the pattern and the search roots (marked entries, else the
+# directory) are appended. Must emit `rg --json` output.
+[search]
+command = ["rg", "--json", "--smart-case", "--hidden", "--glob", "!.git", "-e"]
+
+# ── Safety ───────────────────────────────────────────────────────────────────
+[safety]
+trash_fallback            = "refuse"   # "permanent" offers unlink when no trash
+                                       # exists (still requires typing `yes`)
+follow_symlinks_on_insert = false      # `i` on a directory symlink
+persist_history           = true       # minibuffer history across sessions

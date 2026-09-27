@@ -84,6 +84,8 @@ pub struct App {
     next_op: u64,
     pub(crate) pending_operands: Vec<(PathBuf, Option<PathBuf>)>,
     pub(crate) inflight: HashMap<u64, (OpPlan, BufferId)>,
+    // dired-7yu
+    pub(crate) config_gen: u64,
 }
 
 impl App {
@@ -115,6 +117,7 @@ impl App {
             next_op: 1,
             pending_operands: Vec::new(),
             inflight: HashMap::new(),
+            config_gen: 0,
         };
         app.load_history();
         app.set_diagnostics(config_diags.into_iter().chain(key_diags).collect());
@@ -141,6 +144,12 @@ impl App {
 
     pub fn set_viewport(&mut self, rows: usize) {
         self.viewport = rows.max(1);
+    }
+
+    // dired-7yu
+    /// Bumped whenever configuration (e.g. the theme) changes.
+    pub fn config_generation(&self) -> u64 {
+        self.config_gen
     }
 
     pub fn buffers(&self) -> &[Buffer] {

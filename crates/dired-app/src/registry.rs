@@ -74,6 +74,7 @@ cmds! {
     "quit-window" [] "Close the active buffer; quits after the last one.";
     "save-buffers-kill-terminal" ["kill-emacs", "quit"] "Exit dired.";
     "dired-reload-config" [] "Reload configuration; problems go to *Diagnostics*.";
+    "cycle-theme" ["load-theme"] "Switch to the next built-in theme (for this session).";
     "view-diagnostics" [] "Show the *Diagnostics* buffer.";
     "view-messages" [] "Show the *Messages* buffer.";
     "operation-execute" [] "Execute the previewed operation.";

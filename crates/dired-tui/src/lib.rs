@@ -135,7 +135,9 @@ fn run_foreground(
 pub async fn run(mut app: App) -> io::Result<()> {
     let _guard = TerminalGuard::enter()?;
     let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
-    let theme = Theme::from_config(&app.config.theme);
+    let mut theme = Theme::from_config(&app.config.theme);
+    // dired-7yu
+    let mut theme_gen = app.config_generation();
     let paused = Arc::new(AtomicBool::new(false));
     let stop = Arc::new(AtomicBool::new(false));
     let mut input = spawn_input(paused.clone(), stop.clone());
@@ -145,6 +147,11 @@ pub async fn run(mut app: App) -> io::Result<()> {
     let mut last_draw = Instant::now() - FRAME;
 
     loop {
+        // dired-7yu
+        if app.config_generation() != theme_gen {
+            theme = Theme::from_config(&app.config.theme);
+            theme_gen = app.config_generation();
+        }
         if dirty && last_draw.elapsed() >= FRAME {
             terminal.draw(|f| render::draw(f, &mut app, &theme))?;
             last_draw = Instant::now();

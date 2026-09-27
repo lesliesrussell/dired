@@ -203,6 +203,16 @@ impl App {
             }
             "save-buffers-kill-terminal" => self.quit = true,
             "dired-reload-config" => self.reload_config(),
+            // dired-7yu
+            "cycle-theme" => {
+                let themes = dired_config::THEMES;
+                let cur = self.config.theme.name.as_deref().unwrap_or("default");
+                let i = themes.iter().position(|t| *t == cur).map(|i| i + 1).unwrap_or(0);
+                let next = themes[i % themes.len()];
+                self.config.theme.name = Some(next.to_string());
+                self.config_gen += 1;
+                self.message(format!("Theme: {next}"));
+            }
             "view-diagnostics" => match self.find_buffer("*Diagnostics*") {
                 Some(id) => self.focus(id),
                 None => self.message("No diagnostics"),
@@ -1126,6 +1136,8 @@ impl App {
         diags.extend(kd);
         self.keymaps = keymaps;
         self.config = config;
+        // dired-7yu
+        self.config_gen += 1;
         if diags.is_empty() {
             if let Some(id) = self.find_buffer("*Diagnostics*") {
                 self.remove_buffer(id);

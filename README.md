@@ -39,51 +39,37 @@ In a preview buffer: `x` executes, `q` cancels. For conflicts: `o` overwrite, `s
 
 ## Configuration
 
-`$XDG_CONFIG_HOME/dired/config.toml` (or `~/.config/dired/config.toml`, or `$DIRED_CONFIG`). Errors never stop the app; they are listed in the `*Diagnostics*` buffer.
+`$XDG_CONFIG_HOME/dired/config.toml` (or `~/.config/dired/config.toml`, or `$DIRED_CONFIG`). Errors never stop the app; they are listed in the `*Diagnostics*` buffer, and `dired --check-config` reports them without starting the UI.
+
+**[`examples/config.toml`](examples/config.toml)** is a fully commented tour of every option: themes, per-role styles, glyphs, key bindings to commands and external programs, openers, search, and safety. `make release` copies it to `target/release/examples/`, and `make install` installs it to `$(PREFIX)/share/dired/examples/`.
+
+```sh
+cp examples/config.toml ~/.config/dired/config.toml
+```
+
+### Themes
+
+Built-in: `default`, `high-contrast`, `mono`, `nord`, `gruvbox`, `solarized-dark`, `dracula`. Run `M-x cycle-theme` to preview them live. Hex colors are exact on truecolor terminals (`COLORTERM=truecolor`) and fall back to the nearest ANSI color elsewhere. `NO_COLOR` selects `mono`.
 
 ```toml
-version = 1
-
-[display]
-show_hidden = true
-dirs_first = true
-sort = "name"                  # name | natural | time | size | extension
-columns = ["permissions", "size", "mtime"]
-
 [theme]
-name = "default"               # default | high-contrast | mono (NO_COLOR selects mono)
-colors = { directory = "lightblue", flagged = "#ff5555" }
-glyphs = { marked = "*", flagged = "D", error = "!", changed = "~", focused = ">" }
+name = "gruvbox"
 
-[[keymap]]
-mode = "dired"                 # global | dired | wdired | preview | text
-key = "C-c o"
-exec = ["open", "-R", "{file}"] # {file}: once per operand, {files}: all operands
+[theme.colors]                 # shorthand: role → foreground
+directory = "#83a598"
 
-[[keymap]]
-key = "C-c s"
-command = "dired-sort-by-size"
+[theme.styles.point]           # full control: fg, bg, bold, italic, underline, reversed, dim
+fg = "#fbf1c7"
+bg = "#504945"
+bold = true
 
-[[opener]]
-extensions = ["png", "jpg", "pdf"]
-command = ["open", "{file}"]
-
-[[opener]]
-extensions = ["rs", "toml", "md"]
-command = ["nvim", "+{line}", "{file}"]
-terminal = true                # suspends the UI while it runs
-
-[shell]
-shell = "/bin/sh"              # used only by dired-do-shell-command-in-shell
-
-[search]
-command = ["rg", "--json", "-e"]
-
-[safety]
-trash_fallback = "refuse"      # or "permanent" (still requires typing yes)
-follow_symlinks_on_insert = false
-persist_history = true
+[theme.glyphs]                 # state is always shown by glyphs as well as color
+focused = "▸"
+marked  = "●"
+flagged = "✗"
 ```
+
+The roles are `normal`, `directory`, `symlink`, `executable`, `special`, `marked`, `flagged`, `error`, `changed`, `header`, `dim`, `warning`, `conflict`, `success`, `matched`, `status`, `point`, and `prompt`.
 
 History, the operation journal (`journal.jsonl`), and diagnostics are stored in the platform state directory (`$DIRED_STATE_DIR` overrides). Nothing is sent over the network.
 
