@@ -7,3 +7,5 @@
 
 # dired-7qs
 /target
+.omc/state/
+.claude/scheduled_tasks.lock
