@@ -1,0 +1,18 @@
+[package]
+name = "dired-fs"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["system-trash"]
+system-trash = ["dep:trash"]
+
+[dependencies]
+async-trait = { workspace = true }
+dired-domain = { path = "../dired-domain" }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+trash = { workspace = true, optional = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

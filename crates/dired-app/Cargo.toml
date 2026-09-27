@@ -1,0 +1,20 @@
+[package]
+name = "dired-app"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+dired-config = { path = "../dired-config" }
+dired-domain = { path = "../dired-domain" }
+dired-fs = { path = "../dired-fs", default-features = false }
+dired-process = { path = "../dired-process" }
+nucleo-matcher = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+shlex = { workspace = true }
+tokio = { workspace = true }
+
+[dev-dependencies]
+dired-testkit = { path = "../dired-testkit" }
+tempfile = { workspace = true }

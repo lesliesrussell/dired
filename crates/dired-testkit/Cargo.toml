@@ -1,0 +1,11 @@
+[package]
+name = "dired-testkit"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+async-trait = { workspace = true }
+dired-domain = { path = "../dired-domain" }
+dired-fs = { path = "../dired-fs", default-features = false }
+dired-process = { path = "../dired-process" }
+tokio = { workspace = true }

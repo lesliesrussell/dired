@@ -1,0 +1,50 @@
+# dired-7qs
+[package]
+name = "dired"
+version = "0.1.0"
+edition = "2021"
+description = "Terminal directory editor with Emacs Dired's interaction model"
+license = "MIT OR Apache-2.0"
+
+[[bin]]
+name = "dired"
+path = "src/main.rs"
+
+[features]
+default = ["system-trash"]
+system-trash = ["dired-fs/system-trash"]
+
+[dependencies]
+dired-app = { path = "crates/dired-app" }
+dired-config = { path = "crates/dired-config" }
+dired-fs = { path = "crates/dired-fs", default-features = false }
+dired-process = { path = "crates/dired-process" }
+dired-tui = { path = "crates/dired-tui" }
+dired-domain = { path = "crates/dired-domain" }
+tokio = { workspace = true }
+
+[workspace]
+members = ["crates/*"]
+resolver = "2"
+
+[workspace.dependencies]
+async-trait = "0.1"
+crossterm = "0.28"
+dirs = "6"
+nucleo-matcher = "0.3"
+proptest = "1"
+ratatui = "0.29"
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+shlex = "1.3"
+tempfile = "3"
+thiserror = "2"
+time = { version = "0.3", features = ["local-offset", "formatting", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "process", "io-util", "fs"] }
+toml = "0.8"
+trash = "5"
+unicode-width = "0.2"
+
+[profile.release]
+lto = "thin"

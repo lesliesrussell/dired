@@ -1,0 +1,14 @@
+[package]
+name = "dired-domain"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+regex = { workspace = true }
+serde = { workspace = true }
+time = { workspace = true }
+unicode-width = { workspace = true }
+shlex = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
