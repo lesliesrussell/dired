@@ -1,7 +1,12 @@
 [package]
 name = "dired-testkit"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+# Internal crates of the dired binary.
+publish = false
 
 [dependencies]
 async-trait = { workspace = true }

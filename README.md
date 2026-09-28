@@ -1,12 +1,19 @@
 <!-- dired-7qs -->
 <!-- dired-1wy -->
+<!-- dired-fjh -->
 # dired
+
+[![CI](https://github.com/lesliesrussell/dired/actions/workflows/ci.yml/badge.svg)](https://github.com/lesliesrussell/dired/actions/workflows/ci.yml)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#license)
 
 A terminal file manager that works like Emacs Dired. Each directory is shown as a list of lines, one per file. You move a cursor (called **point**) up and down, **mark** the files you want, and then run a command on all of them at once: copy, move, delete, rename, chmod, or run any program. Nothing destructive happens without a preview that you confirm.
 
 You don't need to know Emacs to use it. This README explains everything from scratch.
 
+**Requirements:** a Rust toolchain ([rustup](https://rustup.rs)) to build, on Linux or macOS. [ripgrep](https://github.com/BurntSushi/ripgrep) is optional (content search with `A`).
+
 ```sh
+git clone https://github.com/lesliesrussell/dired && cd dired
 make install                    # build and install to /usr/local/bin/dired
 make install PREFIX=~/.local    # or install somewhere you own (no sudo)
 dired                           # open the current directory
@@ -815,3 +822,14 @@ History, the operation journal (`journal.jsonl`), and diagnostics are stored in 
 | `dired-testkit` | Mock filesystem (device IDs, failure injection), trash, process runner, clock |
 
 `cargo test --workspace` runs the spec acceptance tests (T1–T16, in `crates/dired-app/tests/gates.rs`) plus unit and property tests.
+
+## License
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or <https://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or <https://opensource.org/licenses/MIT>)
+
+at your option.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
