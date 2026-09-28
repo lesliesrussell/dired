@@ -74,6 +74,15 @@ cmds! {
     "quit-window" [] "Close the active buffer; quits after the last one.";
     "save-buffers-kill-terminal" ["kill-emacs", "quit"] "Exit dired.";
     "dired-reload-config" [] "Reload configuration; problems go to *Diagnostics*.";
+    "split-window-below" [] "Split the selected window into two, one above the other (C-x 2).";
+    "split-window-right" [] "Split the selected window into two, side by side (C-x 3).";
+    "other-window" [] "Select the next window.";
+    "delete-window" [] "Close the selected window; its buffer stays open.";
+    "delete-other-windows" [] "Make the selected window fill the screen.";
+    "dired-other-window" [] "Prompt for a directory and open it in the other window.";
+    "find-file-other-window" [] "Prompt for a path and open it in the other window.";
+    "switch-to-buffer-other-window" [] "Show a buffer in the other window.";
+    "dired-find-file-other-window" ["dired-visit-other-window"] "Visit the entry at point in the other window.";
     "cycle-theme" ["load-theme"] "Switch to the next built-in theme (for this session).";
     "view-diagnostics" [] "Show the *Diagnostics* buffer.";
     "view-messages" [] "Show the *Messages* buffer.";

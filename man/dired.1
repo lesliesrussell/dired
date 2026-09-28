@@ -1,6 +1,7 @@
 .\" dired-ji3
+.\" dired-ta2
 .\" Manual page for dired, a terminal directory editor.
-.Dd September 27, 2026
+.Dd September 28, 2026
 .Dt DIRED 1
 .Os
 .Sh NAME
@@ -41,6 +42,11 @@ is a directory,
 opens it.
 If it is a file, its directory is opened with point on the file.
 The default is the current working directory.
+.Pp
+The screen can be divided into
+.Em windows ,
+each showing a buffer with its own point, as in Emacs; see
+.Sx WINDOWS .
 .Pp
 Large directories are listed immediately: names appear first and
 metadata (size, time, mode) is filled in asynchronously.
@@ -134,8 +140,10 @@ flagged entries, the scan state
 or an error
 .Pc ,
 the active filter, and the sort order.
-The last line is the echo area, which shows messages and becomes the
-minibuffer when a command prompts for input.
+Each window has its own status line (mode line) below it; the selected
+window's is highlighted.
+The last line of the screen is the echo area, which shows messages and
+becomes the minibuffer when a command prompts for input.
 .Sh MARKS AND OPERANDS
 Batch commands operate on the
 .Em visible
@@ -204,6 +212,12 @@ Files are passed to an opener; see
 .It Cm ^
 Visit the parent directory with point on the current one
 .Pq Ic dired\-up\-directory .
+.It Cm o
+Visit the directory at point (or
+.Sq .. )
+in the other window; files are opened as with
+.Cm RET
+.Pq Ic dired\-find\-file\-other\-window .
 .It Cm g
 Reread the directory asynchronously, keeping point on the same entry
 .Pq Ic revert\-buffer .
@@ -296,8 +310,11 @@ For
 .Cm C
 and
 .Cm R
-the destination prompt starts at the current directory, and relative
-paths are resolved against it.
+the destination prompt starts at the directory shown in another window,
+if one shows a different directory, and otherwise at the current
+directory; see
+.Sx WINDOWS .
+Relative paths are resolved against the current directory.
 An existing directory receives the operands under their own names.
 With a single operand, a path that does not exist becomes the new name.
 Several operands require an existing directory.
@@ -412,9 +429,90 @@ Reread the configuration file.
 .It Ic view\-diagnostics , Ic view\-messages
 Show configuration problems or the message history.
 .El
+.Sh WINDOWS
+The screen is divided into one or more windows, each showing a buffer
+and followed by its mode line.
+Side-by-side windows are separated by a vertical rule.
+Keys act on the
+.Em selected
+window, whose mode line is highlighted; only it highlights the point
+line and shows the cursor, while other windows mark point with the
+focus glyph.
+.Bl -tag -width "C-x 4 f, C-x 4 C-f" -compact
+.It Cm C\-x 2
+Split the selected window into two, one above the other
+.Pq Ic split\-window\-below .
+.It Cm C\-x 3
+Split the selected window into two, side by side
+.Pq Ic split\-window\-right .
+.It Cm C\-x o
+Select the next window in layout order
+.Pq Ic other\-window .
+.It Cm C\-x 0
+Close the selected window; its buffer stays open
+.Pq Ic delete\-window .
+The last window cannot be closed.
+.It Cm C\-x 1
+Close every other window
+.Pq Ic delete\-other\-windows .
+.It Cm C\-x 4 d
+Prompt for a directory and open it in the other window
+.Pq Ic dired\-other\-window .
+.It Cm C\-x 4 f , Cm C\-x 4 C\-f
+Prompt for a path and open it in the other window
+.Pq Ic find\-file\-other\-window .
+.It Cm C\-x 4 b
+Show a buffer in the other window
+.Pq Ic switch\-to\-buffer\-other\-window .
+.It Cm o
+In a directory buffer, visit the directory at point in the other window
+.Pq Ic dired\-find\-file\-other\-window .
+.El
+.Pp
+The
+.Em other window
+is the next window after the selected one.
+When there is only one window, the commands above first split it: side
+by side if it is at least 100 columns wide or too short to stack,
+otherwise one above the other.
+They then select the other window.
+.Cm C\-x 4 f
+on a file opens the file without splitting.
+.Pp
+Point and scroll position belong to the window: a directory shown in two
+windows has two independent points.
+Marks, flags, sort order, filter, hidden-file setting, inserted
+subdirectories, and Wdired edits belong to the buffer and are shared by
+all windows showing it.
+A prompt acts on the window it was started from.
+.Pp
+When another window shows a different directory,
+.Cm C
+and
+.Cm R
+offer that directory as the destination, like Emacs's
+.Va dired\-dwim\-target ;
+the next such window in
+.Cm C\-x o
+order is used.
+Set
+.Cm dwim_target
+to false in
+.Cm [display]
+to always start from the current directory.
+.Pp
+Previews open in a new window below the window showing the directory
+they came from, and that window closes when the preview is closed; if it
+is too small to split, the preview replaces it.
+A preview that becomes ready while a prompt is open waits in the
+background.
+Closing a buffer closes a window that was popped up for it; other windows
+showing it switch to the most recently used buffer not already visible.
+Windows are split in half, and a split that would leave a window smaller
+than 4 rows (including its mode line) or 20 columns is refused.
 .Sh PREVIEWS AND CONFLICTS
 Copy, move, rename, change-mode, and delete operations open a preview
-buffer listing each item as
+buffer, in a window below the current one, listing each item as
 .Ar source No \(-> Ar destination
 with its state.
 While any conflict is undecided, the operation cannot run.
@@ -636,6 +734,19 @@ Delete the previous word or path component.
 History is kept per kind of prompt and persists across sessions unless
 .Cm persist_history
 is false.
+.Pp
+In path prompts, which are usually pre-filled, typing
+.Sq ~/
+or a second
+.Sq /
+starts a new path, as in Emacs:
+.Pa /src/~/backup
+means
+.Pa ~/backup
+and
+.Pa /src//tmp
+means
+.Pa /tmp .
 .Sh CANCELLING
 .Cm C\-g
 cancels the first of the following that applies: the open prompt
@@ -742,6 +853,9 @@ Metadata columns in order, from
 .Qq size ,
 and
 .Qq mtime .
+.It Cm dwim_target
+Offer the directory in another window as the copy and move destination
+(default true).
 .El
 .It Cm [theme]
 .Bl -tag -width "show_hidden" -compact
@@ -777,7 +891,7 @@ Keys
 Roles are
 normal, directory, symlink, executable, special, marked, flagged, error,
 changed, header, dim, warning, conflict, success, matched, status,
-point, and prompt.
+point, prompt, and inactive (the mode line of unselected windows).
 Colors are ANSI names such as
 .Qq lightblue
 or
@@ -943,6 +1057,16 @@ Archive the marked files, and run a command once per file:
 .Bd -literal -offset indent
 !  tar czf archive.tgz *  RET
 !  gzip \-k ?  RET
+.Ed
+.Pp
+Copy files between two directories shown side by side:
+.Bd -literal -offset indent
+C\-x 4 d  ~/backup  RET   open ~/backup in a second window
+C\-x o                   back to the first window
+m m                      mark two files
+C  RET                   destination defaults to ~/backup/
+x                        run the previewed copy
+C\-x 1                   back to a single window
 .Ed
 .Pp
 A configuration binding keys to a command and to an external program:

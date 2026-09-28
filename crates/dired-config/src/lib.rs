@@ -54,6 +54,9 @@ pub struct DisplayConfig {
     /// Metadata columns in display order; dropped right-to-left priority
     /// when the terminal is narrow. Known: permissions, size, mtime.
     pub columns: Vec<String>,
+    // dired-ta2
+    /// Copy/move prompts default to the directory shown in another window.
+    pub dwim_target: bool,
 }
 
 impl Default for DisplayConfig {
@@ -63,6 +66,7 @@ impl Default for DisplayConfig {
             dirs_first: true,
             sort: "name".into(),
             columns: vec!["permissions".into(), "size".into(), "mtime".into()],
+            dwim_target: true,
         }
     }
 }
@@ -122,7 +126,7 @@ pub const THEMES: &[&str] =
 pub const STYLE_ROLES: &[&str] = &[
     "normal", "directory", "symlink", "executable", "special", "marked", "flagged", "error",
     "changed", "header", "dim", "warning", "conflict", "success", "matched", "status", "point",
-    "prompt",
+    "prompt", "inactive",
 ];
 
 /// Named colors accepted in addition to `#rrggbb`.

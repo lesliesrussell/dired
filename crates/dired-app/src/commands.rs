@@ -27,7 +27,7 @@ impl App {
         };
         let in_dir = matches!(self.active().kind, BufferKind::Dir(_));
         let needs_dir = (def.name.starts_with("dired-") || def.name.starts_with("wdired-"))
-            && !matches!(def.name, "dired-open-directory" | "dired-find-file" | "dired-undo" | "dired-reload-config");
+            && !matches!(def.name, "dired-open-directory" | "dired-find-file" | "dired-undo" | "dired-reload-config" | "dired-other-window");
         if needs_dir && !in_dir {
             return self.error(format!("{} needs a directory buffer", def.name));
         }
@@ -197,12 +197,59 @@ impl App {
                     };
                     self.remove_buffer(id);
                     if let Some(o) = origin {
-                        self.focus(o);
+                        self.pop_to(o);
                     }
                 }
             }
             "save-buffers-kill-terminal" => self.quit = true,
             "dired-reload-config" => self.reload_config(),
+            // dired-ta2
+            "split-window-below" | "split-window-right" => {
+                let dir = if def.name.ends_with("below") {
+                    crate::windows::SplitDir::Below
+                } else {
+                    crate::windows::SplitDir::Right
+                };
+                if let Err(e) = self.split_selected(dir, false) {
+                    self.error(e);
+                }
+            }
+            "other-window" => match self.next_window() {
+                Some(w) => self.select_window(w),
+                None => self.message("No other window"),
+            },
+            "delete-window" => {
+                if self.windows.len() <= 1 {
+                    self.error("Attempt to delete the sole window");
+                } else {
+                    let w = self.selected;
+                    self.delete_window_raw(w);
+                }
+            }
+            "delete-other-windows" => self.delete_other_windows(),
+            "dired-other-window" => {
+                let init = format!("{}/", self.base_dir().display()).replace("//", "/");
+                self.open_prompt("Dired in other window (directory): ", init, PromptAction::OpenDirectoryOther)
+            }
+            "find-file-other-window" => {
+                let init = format!("{}/", self.base_dir().display()).replace("//", "/");
+                self.open_prompt("Find file in other window: ", init, PromptAction::FindFileOther)
+            }
+            "switch-to-buffer-other-window" => {
+                self.open_prompt("Switch to buffer in other window: ", "", PromptAction::SwitchBufferOther)
+            }
+            "dired-find-file-other-window" => {
+                let d = self.dir().unwrap();
+                let Some(e) = d.point_entry() else { return };
+                let abs = d.abs(&e.key);
+                if e.special || e.is_dir_like() {
+                    if self.select_other_window() {
+                        self.open_dir(abs);
+                    }
+                } else {
+                    self.visit_file(&abs, None);
+                }
+            }
             // dired-7yu
             "cycle-theme" => {
                 let themes = dired_config::THEMES;
@@ -259,6 +306,21 @@ impl App {
                 self.open_dir(expand_path(&input, &base));
             }
             PromptAction::FindFile => self.open_path(expand_path(&input, &base), true),
+            // dired-ta2
+            PromptAction::OpenDirectoryOther => {
+                if self.select_other_window() {
+                    self.open_dir(expand_path(&input, &base));
+                }
+            }
+            PromptAction::FindFileOther => self.open_path_in(expand_path(&input, &base), true, true),
+            PromptAction::SwitchBufferOther => match self.find_buffer(&input) {
+                Some(id) => {
+                    if self.select_other_window() {
+                        self.focus(id);
+                    }
+                }
+                None => self.error(format!("no buffer named `{input}`")),
+            },
             PromptAction::Copy | PromptAction::Move => {
                 let kind = if action == PromptAction::Copy { OpKind::Copy } else { OpKind::Move };
                 let dest = expand_path(&input, &base);
@@ -459,7 +521,9 @@ impl App {
         } else {
             format!("{n} files")
         };
-        let init = format!("{}/", self.base_dir().display()).replace("//", "/");
+        // dired-ta2: default to the directory in another window (dwim target).
+        let target = if self.config.display.dwim_target { self.dwim_target() } else { None };
+        let init = format!("{}/", target.unwrap_or_else(|| self.base_dir()).display()).replace("//", "/");
         let action = if kind == OpKind::Copy { PromptAction::Copy } else { PromptAction::Move };
         self.open_prompt(format!("{verb} {what} to: "), init, action);
     }
@@ -473,6 +537,22 @@ impl App {
         }
         let (fs, trash, tx, origin, id) = (self.svc.fs.clone(), self.svc.trash.clone(), self.tx.clone(), self.active, self.op_id());
         self.spawn(tasks::plan_delete(fs, trash, tx, origin, id, permanent, flagged));
+    }
+
+    // dired-ta2
+    /// Select the other window (splitting if needed); false with a message
+    /// when the screen is too small.
+    pub(crate) fn select_other_window(&mut self) -> bool {
+        match self.ensure_other_window() {
+            Ok(w) => {
+                self.select_window(w);
+                true
+            }
+            Err(e) => {
+                self.error(e);
+                false
+            }
+        }
     }
 
     // ----- visiting -----

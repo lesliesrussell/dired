@@ -20,6 +20,10 @@ pub enum Completion {
 #[derive(Debug, Clone, PartialEq)]
 pub enum PromptAction {
     OpenDirectory,
+    // dired-ta2
+    OpenDirectoryOther,
+    FindFileOther,
+    SwitchBufferOther,
     FindFile,
     Copy,
     Move,
@@ -45,7 +49,10 @@ pub enum PromptAction {
 impl PromptAction {
     pub fn history_key(&self) -> &'static str {
         match self {
-            PromptAction::OpenDirectory | PromptAction::FindFile => "file",
+            PromptAction::OpenDirectory
+            | PromptAction::FindFile
+            | PromptAction::OpenDirectoryOther
+            | PromptAction::FindFileOther => "file",
             PromptAction::Copy | PromptAction::Move | PromptAction::ConflictRename { .. } => "destination",
             PromptAction::Mkdir => "mkdir",
             PromptAction::Chmod => "chmod",
@@ -55,7 +62,7 @@ impl PromptAction {
             PromptAction::Search => "search",
             PromptAction::GotoFile => "goto",
             PromptAction::Filter => "filter",
-            PromptAction::SwitchBuffer | PromptAction::KillBuffer => "buffer",
+            PromptAction::SwitchBuffer | PromptAction::KillBuffer | PromptAction::SwitchBufferOther => "buffer",
             PromptAction::ExtendedCommand => "command",
             PromptAction::Isearch { .. } => "isearch",
             PromptAction::ConfirmShell { .. }
@@ -68,12 +75,14 @@ impl PromptAction {
         match self {
             PromptAction::OpenDirectory
             | PromptAction::FindFile
+            | PromptAction::OpenDirectoryOther
+            | PromptAction::FindFileOther
             | PromptAction::Copy
             | PromptAction::Move
             | PromptAction::Mkdir
             | PromptAction::ConflictRename { .. } => Completion::Path,
             PromptAction::ExtendedCommand => Completion::Command,
-            PromptAction::SwitchBuffer | PromptAction::KillBuffer => Completion::Buffer,
+            PromptAction::SwitchBuffer | PromptAction::KillBuffer | PromptAction::SwitchBufferOther => Completion::Buffer,
             _ => Completion::None,
         }
     }

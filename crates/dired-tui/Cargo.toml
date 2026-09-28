@@ -12,3 +12,7 @@ dired-process = { path = "../dired-process" }
 ratatui = { workspace = true }
 tokio = { workspace = true }
 unicode-width = { workspace = true }
+
+[dev-dependencies]
+dired-fs = { path = "../dired-fs", default-features = false }
+dired-testkit = { path = "../dired-testkit" }

@@ -24,6 +24,8 @@ pub struct Theme {
     pub success: Style,
     pub matched: Style,
     pub status: Style,
+    // dired-ta2: mode line of unselected windows
+    pub inactive: Style,
     pub point: Style,
     pub prompt: Style,
     pub glyphs: Glyphs,
@@ -106,12 +108,12 @@ const U: Modifier = Modifier::UNDERLINED;
 const N: Modifier = Modifier::empty();
 
 /// A hex palette: `(fg, bg, modifiers)` per role, in [`ROLE_ORDER`].
-type Palette = [(&'static str, &'static str, Modifier); 18];
+type Palette = [(&'static str, &'static str, Modifier); 19];
 
-const ROLE_ORDER: [&str; 18] = [
+const ROLE_ORDER: [&str; 19] = [
     "normal", "directory", "symlink", "executable", "special", "marked", "flagged", "error",
     "changed", "header", "dim", "warning", "conflict", "success", "matched", "status", "point",
-    "prompt",
+    "prompt", "inactive",
 ];
 
 const NORD: Palette = [
@@ -133,6 +135,7 @@ const NORD: Palette = [
     ("#eceff4", "#3b4252", N),
     ("#eceff4", "#4c566a", B),
     ("#88c0d0", "", B),
+    ("#7b88a1", "#2e3440", N),
 ];
 
 const GRUVBOX: Palette = [
@@ -154,6 +157,7 @@ const GRUVBOX: Palette = [
     ("#ebdbb2", "#3c3836", N),
     ("#fbf1c7", "#504945", B),
     ("#fabd2f", "", B),
+    ("#928374", "#282828", N),
 ];
 
 const SOLARIZED_DARK: Palette = [
@@ -175,6 +179,7 @@ const SOLARIZED_DARK: Palette = [
     ("#eee8d5", "#073642", N),
     ("#fdf6e3", "#586e75", B),
     ("#2aa198", "", B),
+    ("#586e75", "#002b36", N),
 ];
 
 const DRACULA: Palette = [
@@ -196,6 +201,7 @@ const DRACULA: Palette = [
     ("#f8f8f2", "#44475a", N),
     ("#f8f8f2", "#6272a4", B),
     ("#8be9fd", "", B),
+    ("#6272a4", "#282a36", N),
 ];
 
 impl Theme {
@@ -219,6 +225,7 @@ impl Theme {
             success: s,
             matched: s,
             status: s,
+            inactive: s,
             point: s,
             prompt: s,
             glyphs,
@@ -243,6 +250,7 @@ impl Theme {
             "success" => &mut self.success,
             "matched" => &mut self.matched,
             "status" => &mut self.status,
+            "inactive" => &mut self.inactive,
             "point" => &mut self.point,
             "prompt" => &mut self.prompt,
             _ => return None,
@@ -284,6 +292,7 @@ impl Theme {
             success: s.fg(Color::Green),
             matched: s,
             status: s.add_modifier(Modifier::REVERSED),
+            inactive: s.fg(Color::DarkGray).add_modifier(Modifier::REVERSED),
             point: s.add_modifier(Modifier::REVERSED),
             prompt: s.fg(Color::Cyan).add_modifier(B),
             glyphs,
@@ -310,6 +319,7 @@ impl Theme {
             success: s.fg(Color::LightGreen).add_modifier(B),
             matched: s,
             status: Style::default().fg(Color::Black).bg(Color::White).add_modifier(B),
+            inactive: Style::default().fg(Color::White).bg(Color::DarkGray),
             point: Style::default().fg(Color::Black).bg(Color::LightYellow).add_modifier(B),
             prompt: s.fg(Color::LightYellow).add_modifier(B),
             glyphs,
@@ -328,6 +338,7 @@ impl Theme {
         t.warning = t.warning.add_modifier(B);
         t.conflict = t.conflict.add_modifier(B | U);
         t.status = t.status.add_modifier(Modifier::REVERSED);
+        t.inactive = t.inactive.add_modifier(U);
         t.point = t.point.add_modifier(Modifier::REVERSED);
         t.prompt = t.prompt.add_modifier(B);
         t

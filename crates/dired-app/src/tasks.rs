@@ -31,7 +31,7 @@ pub enum AppEvent {
     ProcExit { buf: BufferId, code: Option<i32>, error: Option<String> },
     Completions { gen: u64, items: Vec<String> },
     UndoDone { op_id: u64, errors: Vec<String>, touched: Vec<PathBuf> },
-    PathResolved { path: PathBuf, is_dir: Result<bool, String>, visit: bool },
+    PathResolved { path: PathBuf, is_dir: Result<bool, String>, visit: bool, other: bool },
     TaskFinished,
 }
 

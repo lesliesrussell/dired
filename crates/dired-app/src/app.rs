@@ -22,6 +22,18 @@ use crate::tasks::{self, AppEvent, Tx};
 /// Expand `~` and resolve relative input against `base`, lexically
 /// (symlinks are not resolved, so user-visible paths are preserved).
 pub fn expand_path(input: &str, base: &Path) -> PathBuf {
+    // dired-ta2: as in Emacs, typing `~/` or `/` after a pre-filled path
+    // starts a new path (`/src/~/backup` is `~/backup`, `/src//tmp` is `/tmp`).
+    let slash = input.rfind("//").map(|i| i + 1);
+    let tilde = input
+        .match_indices("/~")
+        .filter(|(i, _)| matches!(input.as_bytes().get(i + 2), None | Some(b'/')))
+        .map(|(i, _)| i + 1)
+        .last();
+    let input = match slash.max(tilde) {
+        Some(i) => &input[i..],
+        None => input,
+    };
     let p = if input == "~" || input.starts_with("~/") {
         let home = dirs_home();
         home.join(input.trim_start_matches('~').trim_start_matches('/'))
@@ -65,7 +77,13 @@ pub struct App {
     pub(crate) keymaps: Keymaps,
     pub(crate) buffers: Vec<Buffer>,
     pub(crate) active: BufferId,
-    mru: Vec<BufferId>,
+    pub(crate) mru: Vec<BufferId>,
+    // dired-ta2
+    pub(crate) windows: Vec<crate::windows::Window>,
+    pub(crate) layout: crate::windows::Layout,
+    pub(crate) selected: crate::windows::WindowId,
+    pub(crate) next_win: crate::windows::WindowId,
+    pub(crate) area: crate::windows::Rect,
     next_id: BufferId,
     pub(crate) tx: Tx,
     rx: Option<UnboundedReceiver<AppEvent>>,
@@ -99,6 +117,11 @@ impl App {
             buffers: Vec::new(),
             active: 0,
             mru: Vec::new(),
+            windows: Vec::new(),
+            layout: crate::windows::Layout::Leaf(1),
+            selected: 1,
+            next_win: 1,
+            area: crate::windows::Rect { x: 0, y: 0, w: 80, h: 23 },
             next_id: 1,
             tx,
             rx: Some(rx),
@@ -224,6 +247,13 @@ impl App {
         if self.buffers.is_empty() {
             return;
         }
+        // dired-ta2: directory buffers shown in other windows need rows too.
+        let shown: Vec<BufferId> = self.windows.iter().map(|w| w.buffer).collect();
+        for id in shown {
+            if let Some(d) = self.dir_of(id) {
+                d.ensure_view();
+            }
+        }
         let h = self.viewport;
         match &mut self.active_mut().kind {
             BufferKind::Dir(d) => {
@@ -245,8 +275,15 @@ impl App {
     }
 
     pub fn status_line(&mut self) -> String {
-        let name = self.active().name.clone();
-        match &mut self.active_mut().kind {
+        self.status_for(self.active)
+    }
+
+    // dired-ta2
+    /// Mode-line text for any buffer.
+    pub fn status_for(&mut self, id: BufferId) -> String {
+        let Some(b) = self.buffer_mut(id) else { return String::new() };
+        let name = b.name.clone();
+        match &mut b.kind {
             BufferKind::Dir(d) => {
                 let c = d.counts();
                 let mut s = format!(
@@ -331,13 +368,13 @@ impl App {
         id
     }
 
+    /// Show a buffer in the selected window.
     pub fn focus(&mut self, id: BufferId) {
         if self.buffer(id).is_none() {
             return;
         }
-        self.active = id;
-        self.mru.retain(|b| *b != id);
-        self.mru.insert(0, id);
+        // dired-ta2
+        self.show_in_selected(id);
     }
 
     pub(crate) fn remove_buffer(&mut self, id: BufferId) {
@@ -356,11 +393,39 @@ impl App {
         self.mru.retain(|b| *b != id);
         if self.buffers.is_empty() {
             self.quit = true;
+            self.windows.clear();
             return;
         }
-        if self.active == id {
-            let next = self.mru.first().copied().unwrap_or(self.buffers[0].id);
-            self.focus(next);
+        // dired-ta2: popped-up windows close with their buffer; other windows
+        // showing it switch to the most recent buffer not already visible.
+        let showing: Vec<crate::windows::WindowId> =
+            self.windows.iter().filter(|w| w.buffer == id).map(|w| w.id).collect();
+        for w in showing {
+            let popup = self.window(w).map(|x| x.popup).unwrap_or(false);
+            if popup && self.windows.len() > 1 {
+                self.delete_window_raw(w);
+                continue;
+            }
+            let visible: Vec<BufferId> = self.windows.iter().map(|x| x.buffer).collect();
+            let rep = self
+                .mru
+                .iter()
+                .copied()
+                .find(|b| !visible.contains(b))
+                .or_else(|| self.mru.first().copied())
+                .unwrap_or(self.buffers[0].id);
+            let v = self.snapshot(rep);
+            if let Some(win) = self.window_mut(w) {
+                win.buffer = rep;
+                win.popup = false;
+                win.view = v;
+            }
+        }
+        self.mru.retain(|b| *b != id);
+        if let Some(buf) = self.window(self.selected).map(|w| w.buffer) {
+            self.active = buf;
+            self.mru.retain(|b| *b != buf);
+            self.mru.insert(0, buf);
         }
     }
 
@@ -433,6 +498,11 @@ impl App {
     /// Open a path from the command line: directories open, files open their
     /// parent with point on the file.
     pub fn open_path(&mut self, path: impl AsRef<Path>, visit: bool) {
+        self.open_path_in(path, visit, false)
+    }
+
+    // dired-ta2
+    pub(crate) fn open_path_in(&mut self, path: impl AsRef<Path>, visit: bool, other: bool) {
         let path = normalize(path.as_ref());
         let fs = self.svc.fs.clone();
         let tx = self.tx.clone();
@@ -442,7 +512,7 @@ impl App {
                 .await
                 .map(|m| m.kind == dired_domain::FileKind::Dir)
                 .map_err(|e| e.to_string());
-            let _ = tx.send(AppEvent::PathResolved { path, is_dir, visit });
+            let _ = tx.send(AppEvent::PathResolved { path, is_dir, visit, other });
         });
     }
 
@@ -524,7 +594,7 @@ impl App {
             if matches!(p.phase, PreviewPhase::Pending) {
                 let origin = p.origin;
                 self.remove_buffer(active);
-                self.focus(origin);
+                self.pop_to(origin);
                 self.message("Operation cancelled; nothing was changed");
                 return;
             }
@@ -740,7 +810,7 @@ impl App {
         if self.buffer(p.origin).is_none() {
             return self.error("the buffer this prompt was for is gone");
         }
-        self.focus(p.origin);
+        self.pop_to(p.origin);
         self.push_history(p.action.history_key(), &p.input);
         let input = p.input.clone();
         let base = p.base_dir.clone();
@@ -879,11 +949,15 @@ impl App {
             AppEvent::ProcExit { buf, code, error } => self.proc_exit(buf, code, error),
             AppEvent::Completions { gen, items } => self.apply_completions(gen, items),
             AppEvent::UndoDone { op_id, errors, touched } => self.undo_done(op_id, errors, touched),
-            AppEvent::PathResolved { path, is_dir, visit } => self.path_resolved(path, is_dir, visit),
+            AppEvent::PathResolved { path, is_dir, visit, other } => self.path_resolved(path, is_dir, visit, other),
         }
     }
 
-    fn path_resolved(&mut self, path: PathBuf, is_dir: Result<bool, String>, visit: bool) {
+    fn path_resolved(&mut self, path: PathBuf, is_dir: Result<bool, String>, visit: bool, other: bool) {
+        // dired-ta2: only directories go to the other window.
+        if other && matches!(is_dir, Ok(true)) && !self.select_other_window() {
+            return;
+        }
         match is_dir {
             Err(e) if self.buffers.is_empty() => {
                 // Startup path is unusable: show it as a buffer with the error.
@@ -923,8 +997,19 @@ impl App {
             // Don't yank focus from under an open prompt.
             let n = self.buffer(id).map(|b| b.name.clone()).unwrap_or_default();
             self.message(format!("Preview ready in {n} (b to switch)"));
-        } else {
-            self.focus(id);
+            return;
+        }
+        // dired-ta2: pop the preview up below, keeping the source visible.
+        self.pop_to(origin);
+        match self.split_selected(crate::windows::SplitDir::Below, true) {
+            Ok(w) => {
+                self.select_window(w);
+                self.focus(id);
+                if let Some(win) = self.window_mut(w) {
+                    win.popup = true;
+                }
+            }
+            Err(_) => self.focus(id),
         }
     }
 

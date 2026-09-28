@@ -12,6 +12,9 @@ pub mod minibuffer;
 pub mod registry;
 pub mod services;
 pub mod tasks;
+// dired-ta2
+mod window_ops;
+pub mod windows;
 
 pub use app::{expand_path, normalize, App};
 pub use commands::parse_rg_json;

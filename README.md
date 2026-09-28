@@ -37,11 +37,12 @@ Inside dired, press `?` for a list of every key and command, and `C-x C-c` to qu
 14. [Viewing subdirectories inline (`i` and `$`)](#14-viewing-subdirectories-inline-i-and-)
 15. [Sorting, filtering, and hidden files](#15-sorting-filtering-and-hidden-files)
 16. [Buffers](#16-buffers)
-17. [The minibuffer (prompts)](#17-the-minibuffer-prompts)
-18. [Cancelling with `C-g`, and undo](#18-cancelling-with-c-g-and-undo)
-19. [Worked examples](#19-worked-examples)
-20. [Complete key reference](#20-complete-key-reference)
-21. [Configuration](#configuration)
+17. [Windows: several buffers on screen](#17-windows-several-buffers-on-screen)
+18. [The minibuffer (prompts)](#18-the-minibuffer-prompts)
+19. [Cancelling with `C-g`, and undo](#19-cancelling-with-c-g-and-undo)
+20. [Worked examples](#20-worked-examples)
+21. [Complete key reference](#21-complete-key-reference)
+22. [Configuration](#configuration)
 
 ---
 
@@ -118,6 +119,8 @@ The **status line** shows:
 | `hidden:off` | only shown when dotfiles are hidden |
 | `WDIRED (2 edited)` | only shown while editing names |
 
+When the screen is split into several windows (section 17), each window has its own status line (also called the *mode line*) directly below it. The selected window's is highlighted; the others are dimmer.
+
 The **echo area** at the bottom shows messages and errors, and turns into the **prompt** when a command asks you something.
 
 Large directories open immediately. Names appear first, and sizes and dates fill in a moment later. You can move around and run commands while loading continues.
@@ -151,6 +154,7 @@ Search ignores case unless you type an uppercase letter ("smart case"). If nothi
 |---|---|
 | `RET` `f` `e` | Visit the entry at point |
 | `^` | Go to the parent directory (point lands on the directory you came from) |
+| `o` | Open the directory at point in the **other window** (section 17); files open as with `RET` |
 | `C-x d` | Ask for a directory path and open it |
 | `C-x C-f` | Ask for any path: directories open in dired, files are visited |
 | `g` | Reload the listing from disk |
@@ -318,7 +322,7 @@ If trash isn't available (for example on some network drives), the preview says 
 | `C` | Copy the marked files (or the one at point) |
 | `R` | Move or rename the marked files (or the one at point) |
 
-dired asks for a destination, pre-filled with the current directory. Edit it and press `RET`. `TAB` completes paths, and `~` means your home directory.
+dired asks for a destination. It is pre-filled with the current directory or, when another window shows a different directory, with *that* directory (see "Copying between windows" in section 17). Edit it and press `RET`. `TAB` completes paths, and `~` means your home directory.
 
 **How the destination is interpreted**
 
@@ -338,7 +342,7 @@ A **preview** always opens before anything happens (section 9). It shows every `
 
 ## 9. The preview buffer and conflicts
 
-Every copy, move, rename, chmod, and delete goes through a preview:
+Every copy, move, rename, chmod, and delete goes through a preview. The preview opens in a new window below the directory it came from, so that directory stays visible. The window closes when the preview is closed (`q`, or `C-g` before running). If the screen is too small to split, the preview takes over the window instead:
 
 ```
  Operation preview: Copy
@@ -380,7 +384,7 @@ Move between items with `n` / `p` (or `C-n` / `C-p`). While any conflict is unde
 
 After running, the preview becomes a **result list**: `done`, `skipped`, or `FAILED: reason` per item, plus a summary. Press `q` to return to the directory, which has refreshed itself.
 
-Every completed operation is saved to a journal, so it can usually be undone with `C-x u` (section 18).
+Every completed operation is saved to a journal, so it can usually be undone with `C-x u` (section 19).
 
 ## 10. Renaming: one file, many files, or by pattern
 
@@ -530,13 +534,68 @@ Everything dired shows is a **buffer**:
 | Keys | Does |
 |---|---|
 | `b` (or `C-x b`) | Switch buffer. Type a few letters of its name; matching is fuzzy, so `dwn` finds `Downloads/`. `RET` picks the top match, `TAB` completes |
-| `q` | Close the current buffer. Closing the last one quits dired |
+| `q` | Close the current buffer. Closing the last one quits dired. Other windows showing it switch to another buffer |
 | `C-x k` | Close a buffer by name (`RET` for the current one). Asks `y`/`n` first if it has unsaved Wdired edits, an unfinished preview, or a running program |
 | `C-x C-c` | Quit dired |
 
 Each directory buffer remembers its own point, marks, flags, sort, filter, hidden-file setting, expanded subdirectories, and edits.
 
-## 17. The minibuffer (prompts)
+## 17. Windows: several buffers on screen
+
+As in Emacs, the screen can be divided into **windows**, each showing a buffer. The most common use is two directories side by side, so you can copy and move between them.
+
+| Keys | Command | Does |
+|---|---|---|
+| `C-x 2` | `split-window-below` | Split the selected window into two, one above the other |
+| `C-x 3` | `split-window-right` | Split the selected window into two, side by side |
+| `C-x o` | `other-window` | Select the next window (in layout order: windows split from the same window come one after another; it wraps around) |
+| `C-x 0` | `delete-window` | Close the selected window. Its buffer stays open; `b` brings it back |
+| `C-x 1` | `delete-other-windows` | Keep only the selected window |
+| `C-x 4 d` | `dired-other-window` | Open a directory in the other window |
+| `C-x 4 f` `C-x 4 C-f` | `find-file-other-window` | Open any path in the other window |
+| `C-x 4 b` | `switch-to-buffer-other-window` | Show a buffer in the other window |
+| `o` | `dired-find-file-other-window` | In a directory buffer: open the directory at point (or `..`) in the other window |
+
+**The "other window"** is the next window after the selected one. If there is only one window, the `C-x 4` commands and `o` split it first: side by side when it is at least 100 columns wide (or too short to stack), otherwise one above the other. They then select the other window and open there. `C-x 4 f` on a file just opens the file, without splitting.
+
+**What the screen shows**
+- Each window has its own status line (mode line). The selected window's is highlighted; the others use the dimmer `inactive` theme style.
+- Side-by-side windows are separated by a vertical rule `│`.
+- Only the selected window highlights the point line and shows the cursor. The others mark their point with the `>` glyph.
+
+```
+  /home/ana/src:                      │  /home/ana/backup:
+                           ../        │>                           ../
+ *  -rw-r--r--  2 …  one.txt          │    -rw-r--r--  9 …  old.txt
+>   -rw-r--r--  2 …  two.txt          │
+ src/  marked:1 flagged:0  [done] …   │ backup/  marked:0 flagged:0 …
+```
+
+**What belongs to a window and what belongs to a buffer**
+- **Per window:** point and scroll position. Showing the same directory in two windows gives two independent cursors, like two bookmarks in one list.
+- **Per buffer, shared by every window showing it:** marks, flags, sort order, filter, hidden-file setting, inserted subdirectories, and Wdired edits. If you mark a file in one window, it appears marked in the other.
+
+Keys always act on the selected window. A prompt belongs to the window it was started from, even if something else opens meanwhile.
+
+### Copying between windows
+
+When another window shows a different directory, `C` (copy) and `R` (move) pre-fill the destination with **that** directory. This is Emacs's `dired-dwim-target` ("do what I mean"). With `src/` on the left and `backup/` on the right:
+
+1. In the left window, mark files with `m`.
+2. Press `C`. The prompt already says `/home/ana/backup/`.
+3. Press `RET`. The preview opens below the left window; press `x`.
+4. The right window refreshes and shows the copies.
+
+If several other windows show directories, the next one in `C-x o` order wins. To always start from the current directory instead, set `dwim_target = false` in the `[display]` section of your config.
+
+### Previews, closing, and sizes
+
+- Previews pop up in a new window below the directory they came from. The window closes when the preview is closed (`q`, `C-g` before running, or `q` after running). Moving away with `C-x o` or `b` leaves it open. If the window is too small to split, the preview replaces it instead. If a preview finishes planning while you are typing in a prompt, it waits in the background (`b` to switch to it) rather than interrupting you.
+- Closing a buffer (`q`, `C-x k`) closes a popped-up window showing it. Any other window showing it switches to the most recent buffer that is not already visible.
+- Windows split in half. The smallest window is 4 rows (including its mode line) by 20 columns; a split that would go below that is refused with "too small to split".
+- `C-x 0` never closes the last window; `q` on the last buffer quits dired as usual.
+
+## 18. The minibuffer (prompts)
 
 Whenever dired asks for input, you're editing a one-line text field at the bottom of the screen:
 
@@ -555,9 +614,11 @@ Whenever dired asks for input, you're editing a one-line text field at the botto
 
 History is kept separately for paths, regexps, shell commands, searches, and so on, and is saved between sessions.
 
+**Starting a new path.** Path prompts are pre-filled (usually with the current directory). As in Emacs, you don't have to erase that first: typing `~/` or a second `/` starts over. For example, `/home/ana/src/~/backup` means `~/backup`, and `/home/ana/src//tmp` means `/tmp`. A `~` inside a name, as in `a~b`, is literal.
+
 **`M-x`** runs any command by name. Type part of it (for example `sortsize` finds `dired-sort-by-size`) and press `RET`. Every command, including those without a key, is listed in the `?` help buffer.
 
-## 18. Cancelling with `C-g`, and undo
+## 19. Cancelling with `C-g`, and undo
 
 `C-g` is "stop what I'm doing". It cancels the first thing that applies:
 
@@ -579,7 +640,7 @@ History is kept separately for paths, regexps, shell commands, searches, and so 
 
 Undo is best-effort. If files changed in the meantime, some steps may fail, and the echo area says which.
 
-## 19. Worked examples
+## 20. Worked examples
 
 **Clean out log files**
 1. `% d` `\.log$` `RET`: every `.log` file gets a `D`.
@@ -613,10 +674,12 @@ Undo is best-effort. If files changed in the meantime, some steps may fail, and 
 **Find where something is used, then edit it**
 - `A` `parse_config` `RET`, move to a match, `RET` opens your editor at that line.
 
-**Compare two directories side by side**
-- `C-x d` `~/a` `RET`, `C-x d` `~/b` `RET`, then `b` to flip between them. Each keeps its own marks and position.
+**Work with two directories side by side**
+1. `dired ~/src`, then `C-x 4 d` `~/backup` `RET`: `~/backup` opens in a second window beside (or below) the first.
+2. `C-x o` back to `~/src`, mark files with `m`, press `C`. The destination already reads `~/backup/`: `RET`, then `x`.
+3. `C-x 1` returns to a single window; `b` still reaches both directories.
 
-## 20. Complete key reference
+## 21. Complete key reference
 
 **Directory buffers**
 
@@ -624,6 +687,7 @@ Undo is best-effort. If files changed in the meantime, some steps may fail, and 
 |---|---|---|
 | `RET` `f` `e` | `dired-visit` | Open directory / visit file |
 | `^` | `dired-up-directory` | Parent directory |
+| `o` | `dired-find-file-other-window` | Open in the other window |
 | `g` | `revert-buffer` | Reload, keeping point and marks |
 | `n` `SPC` / `p` | `next-line` / `previous-line` | Move |
 | `j` | `dired-goto-file` | Jump to a name |
@@ -667,6 +731,12 @@ Undo is best-effort. If files changed in the meantime, some steps may fail, and 
 | `C-x C-f` | `dired-find-file` | Open any path |
 | `C-x b` | `switch-to-buffer` | Switch buffer |
 | `C-x k` | `buffer-kill` | Close a buffer |
+| `C-x 2` / `C-x 3` | `split-window-below` / `split-window-right` | Split the window |
+| `C-x o` | `other-window` | Next window |
+| `C-x 0` / `C-x 1` | `delete-window` / `delete-other-windows` | Close this window / all others |
+| `C-x 4 d` | `dired-other-window` | Open a directory in the other window |
+| `C-x 4 f` `C-x 4 C-f` | `find-file-other-window` | Open a path in the other window |
+| `C-x 4 b` | `switch-to-buffer-other-window` | Show a buffer in the other window |
 | `C-x u` `C-/` `C-_` | `dired-undo` | Undo last operation |
 | `M-x` | `execute-extended-command` | Run a command by name |
 | `C-h m` `C-h b` `<f1>` | `help-for-help` | Help |
@@ -728,7 +798,7 @@ marked  = "●"
 flagged = "✗"
 ```
 
-The roles are `normal`, `directory`, `symlink`, `executable`, `special`, `marked`, `flagged`, `error`, `changed`, `header`, `dim`, `warning`, `conflict`, `success`, `matched`, `status`, `point`, and `prompt`.
+The roles are `normal`, `directory`, `symlink`, `executable`, `special`, `marked`, `flagged`, `error`, `changed`, `header`, `dim`, `warning`, `conflict`, `success`, `matched`, `status`, `point`, `prompt`, and `inactive` (mode lines of unselected windows).
 
 History, the operation journal (`journal.jsonl`), and diagnostics are stored in the platform state directory (`$DIRED_STATE_DIR` overrides). Nothing is sent over the network.
 

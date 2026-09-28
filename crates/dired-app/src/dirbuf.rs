@@ -342,7 +342,23 @@ impl DirBuffer {
         }
     }
 
-    fn find_row(&self, key: &Path) -> Option<usize> {
+    // dired-ta2
+    /// Point, scroll offset, and point identity, for per-window views.
+    pub fn view_state(&self) -> (usize, usize, Option<PathBuf>) {
+        (self.point, self.top, self.point_key.clone())
+    }
+
+    // dired-ta2
+    pub fn set_view_state(&mut self, point: usize, top: usize, key: Option<PathBuf>) {
+        self.point = point;
+        self.top = top;
+        if key.is_some() {
+            self.point_key = key;
+        }
+        self.view_dirty = true;
+    }
+
+    pub fn find_row(&self, key: &Path) -> Option<usize> {
         self.view.iter().position(|r| self.entry(r).key == key)
     }
 

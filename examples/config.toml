@@ -1,4 +1,5 @@
 # dired-7yu
+# dired-ta2
 # ─────────────────────────────────────────────────────────────────────────────
 #  dired — example configuration
 #
@@ -20,6 +21,9 @@ sort        = "natural"          # name | natural | time | size | extension  (cy
 # Metadata columns, left to right. On narrow terminals they collapse
 # (permissions first, then mtime, then size) before names are truncated.
 columns     = ["permissions", "size", "mtime"]
+# With two windows (C-x 3, C-x 4 d), C and R default to the directory shown in
+# the other window, as Emacs's dired-dwim-target does.
+dwim_target = true
 
 # ── Theme ────────────────────────────────────────────────────────────────────
 # Built-ins: default, high-contrast, mono, nord, gruvbox, solarized-dark, dracula.
@@ -36,6 +40,7 @@ special    = "#4c566a"
 # Full control per role: fg, bg, bold, italic, underline, reversed, dim.
 # Roles: normal directory symlink executable special marked flagged error
 #        changed header dim warning conflict success matched status point prompt
+#        inactive
 [theme.styles.point]             # the line at point
 fg   = "#eceff4"
 bg   = "#434c5e"
@@ -45,6 +50,10 @@ bold = true
 fg   = "#2e3440"
 bg   = "#88c0d0"
 bold = true
+
+[theme.styles.inactive]          # mode lines of unselected windows
+fg = "#7b88a1"
+bg = "#2e3440"
 
 [theme.styles.marked]
 fg        = "#ebcb8b"

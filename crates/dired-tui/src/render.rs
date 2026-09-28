@@ -96,45 +96,56 @@ pub fn draw(f: &mut Frame, app: &mut App, theme: &Theme) {
         .prompt()
         .map(|p| p.candidates.len().min(MAX_CANDIDATES) as u16)
         .unwrap_or(0);
+    // dired-ta2: windows fill the screen above the minibuffer; each has a
+    // mode line, and side-by-side windows are separated by a rule.
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Min(1),
-            Constraint::Length(1),
-            Constraint::Length(cand_lines),
-            Constraint::Length(1),
-        ])
+        .constraints([Constraint::Min(1), Constraint::Length(cand_lines), Constraint::Length(1)])
         .split(area);
-    let body = chunks[0];
-    app.set_viewport(body.height as usize);
+    let warea = chunks[0];
+    app.set_window_area(warea.width, warea.height);
     app.prepare_frame();
-    let status = app.status_line();
     let hint = app.key_hint();
     let cols = columns(&app.config.display.columns);
     let mut cursor: Option<Position> = None;
 
-    match &mut app.active_mut().kind {
-        BufferKind::Dir(d) => cursor = draw_dir(f, body, d, theme, &cols),
-        BufferKind::Text(t) => {
-            let (point, top) = (t.point, t.top);
-            draw_lines(f, body, &t.lines, top, Some(point), theme);
+    for (wid, r, selected) in app.window_rects() {
+        let rect = Rect::new(warea.x + r.x, warea.y + r.y, r.w, r.h);
+        if rect.width == 0 || rect.height == 0 {
+            continue;
         }
-        BufferKind::Preview(p) => {
-            let (lines, first) = p.lines();
-            draw_lines(f, body, &lines, p.top, Some(first + p.point), theme);
+        if r.x > 0 {
+            let rule: Vec<Line> = (0..rect.height).map(|_| Line::from(Span::styled("│", theme.dim))).collect();
+            f.render_widget(Paragraph::new(rule), Rect::new(rect.x - 1, rect.y, 1, rect.height));
         }
+        let body = Rect::new(rect.x, rect.y, rect.width, rect.height.saturating_sub(1));
+        let mode = Rect::new(rect.x, rect.y + rect.height.saturating_sub(1), rect.width, 1);
+        let Some(buf) = app.window(wid).map(|w| w.buffer) else { continue };
+        let view = app.render_view(wid, body.height as usize);
+        let status = app.status_for(buf);
+        match app.buffer_mut(buf).map(|b| &mut b.kind) {
+            Some(BufferKind::Dir(d)) => {
+                let c = draw_dir(f, body, d, theme, &cols, view.point, view.top, selected);
+                if selected {
+                    cursor = c;
+                }
+            }
+            Some(BufferKind::Text(t)) => draw_lines(f, body, &t.lines, view.top, Some(view.point), theme, selected),
+            Some(BufferKind::Preview(p)) => {
+                let (lines, first) = p.lines();
+                draw_lines(f, body, &lines, view.top, Some(first + view.point), theme, selected);
+            }
+            None => {}
+        }
+        // Mode line (the prefix-key hint shows in the selected window's).
+        let w = mode.width as usize;
+        let text = match (&hint, selected) {
+            (Some(h), true) => format!(" {}  │ {}", truncate(&status, w / 2), h),
+            _ => format!(" {status}"),
+        };
+        let style = if selected { theme.status } else { theme.inactive };
+        f.render_widget(Paragraph::new(pad_right(&truncate(&text, w), w)).style(style), mode);
     }
-
-    // Status line (hint replaces the right part while a prefix is pending).
-    let status_text = match hint {
-        Some(h) => format!(" {}  │ {}", truncate(&status, (area.width as usize) / 2), h),
-        None => format!(" {status}"),
-    };
-    f.render_widget(
-        Paragraph::new(pad_right(&truncate(&status_text, area.width as usize), area.width as usize))
-            .style(theme.status),
-        chunks[1],
-    );
 
     // Completion candidates.
     if let Some(p) = app.prompt() {
@@ -149,12 +160,12 @@ pub fn draw(f: &mut Frame, app: &mut App, theme: &Theme) {
                     Line::from(Span::styled(truncate(c, area.width as usize), st))
                 })
                 .collect();
-            f.render_widget(Paragraph::new(lines), chunks[2]);
+            f.render_widget(Paragraph::new(lines), chunks[1]);
         }
     }
 
     // Minibuffer / echo area.
-    let mb = chunks[3];
+    let mb = chunks[2];
     if let Some(p) = app.prompt() {
         let label_w = p.label.width();
         let before: String = sanitize(&p.input.chars().take(p.cursor).collect::<String>()).into_owned();
@@ -187,7 +198,7 @@ fn line_style(s: LineStyle, t: &Theme) -> Style {
     }
 }
 
-fn draw_lines(f: &mut Frame, area: Rect, lines: &[TextLine], top: usize, point: Option<usize>, theme: &Theme) {
+fn draw_lines(f: &mut Frame, area: Rect, lines: &[TextLine], top: usize, point: Option<usize>, theme: &Theme, active: bool) {
     let w = area.width as usize;
     let out: Vec<Line> = lines
         .iter()
@@ -199,7 +210,8 @@ fn draw_lines(f: &mut Frame, area: Rect, lines: &[TextLine], top: usize, point: 
             let glyph = if focused { &theme.glyphs.focused } else { " " };
             let text = truncate(&format!("{glyph}{}", l.text), w);
             let mut st = line_style(l.style, theme);
-            if focused {
+            // Only the selected window highlights point; others show the glyph.
+            if focused && active {
                 st = st.patch(theme.point);
                 return Line::from(Span::styled(pad_right(&text, w), st));
             }
@@ -209,7 +221,17 @@ fn draw_lines(f: &mut Frame, area: Rect, lines: &[TextLine], top: usize, point: 
     f.render_widget(Paragraph::new(out), area);
 }
 
-fn draw_dir(f: &mut Frame, area: Rect, d: &mut DirBuffer, theme: &Theme, cfg_cols: &[Col]) -> Option<Position> {
+#[allow(clippy::too_many_arguments)]
+fn draw_dir(
+    f: &mut Frame,
+    area: Rect,
+    d: &mut DirBuffer,
+    theme: &Theme,
+    cfg_cols: &[Col],
+    point: usize,
+    top: usize,
+    active: bool,
+) -> Option<Position> {
     let w = area.width as usize;
     let mut lines = Vec::with_capacity(area.height as usize);
     let mut header = format!("  {}:", d.root.display());
@@ -219,7 +241,7 @@ fn draw_dir(f: &mut Frame, area: Rect, d: &mut DirBuffer, theme: &Theme, cfg_col
     }
     lines.push(Line::from(Span::styled(truncate(&header, w), theme.header)));
     let height = area.height.saturating_sub(1) as usize;
-    let rows: Vec<Row> = d.rows().iter().skip(d.top).take(height).cloned().collect();
+    let rows: Vec<Row> = d.rows().iter().skip(top).take(height).cloned().collect();
 
     // Drop low-priority metadata before truncating names.
     let prefix_w = 4;
@@ -241,9 +263,9 @@ fn draw_dir(f: &mut Frame, area: Rect, d: &mut DirBuffer, theme: &Theme, cfg_col
     let mut cursor = None;
 
     for (i, r) in rows.iter().enumerate() {
-        let idx = d.top + i;
+        let idx = top + i;
         let e = d.entry(r);
-        let focused = idx == d.point;
+        let focused = idx == point;
         let state = d.state(&e.key);
         let edited = d.wdired.as_ref().map(|wd| wd.edits.contains_key(&e.key)).unwrap_or(false);
         let annotation = d.annotations.get(&e.key).cloned();
@@ -313,7 +335,7 @@ fn draw_dir(f: &mut Frame, area: Rect, d: &mut DirBuffer, theme: &Theme, cfg_col
                 tail.push_str(&truncate(&format!("  {} {a}", g.error), room));
             }
         }
-        if focused {
+        if focused && active {
             if let Some(wd) = &d.wdired {
                 let before: String = name.chars().take(wd.col.min(name.chars().count())).collect();
                 let x = spans.iter().map(|s| s.content.width()).sum::<usize>() + indent.width() + before.width();
@@ -324,7 +346,7 @@ fn draw_dir(f: &mut Frame, area: Rect, d: &mut DirBuffer, theme: &Theme, cfg_col
         spans.push(Span::styled(shown, name_style));
         spans.push(Span::styled(tail, if annotation.is_some() { theme.error } else { theme.dim }));
         let mut line = Line::from(spans);
-        if focused {
+        if focused && active {
             let used: usize = line.spans.iter().map(|s| s.content.width()).sum();
             if used < w {
                 line.spans.push(Span::raw(" ".repeat(w - used)));
