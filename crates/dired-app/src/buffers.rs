@@ -47,6 +47,8 @@ pub enum TextRole {
     Diagnostics,
     Process,
     Search,
+    // dired-6xv
+    View,
 }
 
 /// A location a text line can visit.
@@ -260,6 +262,7 @@ impl Buffer {
                 TextRole::Diagnostics => "diagnostics",
                 TextRole::Process => "process",
                 TextRole::Search => "search",
+                TextRole::View => "view", // dired-6xv
             },
             BufferKind::Preview(_) => "operation",
         }

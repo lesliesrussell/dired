@@ -620,6 +620,8 @@ As in Emacs, the screen can be divided into **windows**, each showing a buffer. 
 | `C-x 4 f` `C-x 4 C-f` | `find-file-other-window` | Open any path in the other window |
 | `C-x 4 b` | `switch-to-buffer-other-window` | Show a buffer in the other window |
 | `o` | `dired-find-file-other-window` | In a directory buffer: open the directory at point (or `..`) in the other window |
+| `v` | `split-window-to-file-view` | In a directory buffer: show the file at point in a read-only view window (below) |
+| `C-M-v` / `C-M-b` | `scroll-other-window` / `scroll-other-window-down` | Scroll the other window forward / back one page without leaving this one |
 
 **The "other window"** is the next window after the selected one. If there is only one window, the `C-x 4` commands and `o` split it first: side by side when it is at least 100 columns wide (or too short to stack), otherwise one above the other. They then select the other window and open there. `C-x 4 f` on a file just opens the file, without splitting.
 
@@ -641,6 +643,22 @@ As in Emacs, the screen can be divided into **windows**, each showing a buffer. 
 - **Per buffer, shared by every window showing it:** marks, flags, sort order, filter, hidden-file setting, inserted subdirectories, and Wdired edits. If you mark a file in one window, it appears marked in the other.
 
 Keys always act on the selected window. A prompt belongs to the window it was started from, even if something else opens meanwhile.
+
+### Looking inside a file without opening it (`v`)
+
+`v` shows the file at point in a **view window**, a read-only snapshot, while your cursor stays in the directory window. It is explicit: nothing changes until you press `v`; move to another file and press `v` again to refresh the same window. (Close it with `C-x 0` while it is selected, or `C-x 1` to keep only one window.)
+
+- The view goes in the window already showing it, otherwise the other window, splitting first if there is only one (the same rule as `o`). Whatever that other window showed is not lost; `b` brings the buffer back.
+- **Text files** show a header (path, size, modified time) and the first 500 lines or 64 KiB. If there is more, the last line says so (`… truncated, 4.8M total`). Tabs are expanded and long lines are cut at the window edge.
+- **Binary files** (a NUL byte, or not valid UTF-8) show `Binary file (…)` and a hex dump of the first 256 bytes.
+- **Directories** list up to 200 entries, subdirectories first and marked with `/`.
+- **Symlinks** show `link → target` and the target's contents.
+- **Pipes, sockets and devices** are never opened (reading them can hang): the view says `Not a regular file`.
+- **Unreadable files** say why (`Cannot read: …`).
+
+The file is read in the background, so a slow disk or a huge file never freezes dired; the window shows `Loading…` until it is ready, and if you press `v` again quickly only the latest request is shown.
+
+To read past the first screen without switching windows, press `C-M-v` (forward) and `C-M-b` (back) in the directory window. Each moves a page, keeping two lines of overlap, and the echo area says `End of buffer` or `Beginning of buffer` at the ends. (Terminals cannot tell `C-M-S-v` from `C-M-v`, so going back uses `C-M-b` rather than Emacs's key.) These scroll the view window if there is one, otherwise the next window, as long as it shows text; for a directory window use `C-x o`.
 
 ### Copying between windows
 
@@ -753,6 +771,8 @@ Undo is best-effort. If files changed in the meantime, some steps may fail, and 
 |---|---|---|
 | `RET` `f` `e` | `dired-visit` | Open directory / visit file |
 | `O` | `dired-open-with` | Choose a program to open the marked files (else the file at point) |
+| `v` | `split-window-to-file-view` | Show the file at point in a read-only view window |
+| `C-M-v` / `C-M-b` | `scroll-other-window` / `scroll-other-window-down` | Scroll the other window forward / back a page |
 | `J` | `jump-to-directory` | Pick a bookmark or frequent directory and open it |
 | `C-x r m` / `C-x r d` | `dired-bookmark-set` / `dired-bookmark-delete` | Bookmark the current directory / delete a bookmark |
 | `w` / `W` | `dired-copy-name` / `dired-copy-path` | Copy names / full paths of the marked entries (else point) to the clipboard |

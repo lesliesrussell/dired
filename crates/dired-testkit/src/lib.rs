@@ -167,6 +167,16 @@ impl MockFs {
         st.insert(p, NodeKind::File(data.as_bytes().to_vec()));
     }
 
+    // dired-6xv
+    /// Like [`MockFs::write`] for arbitrary bytes.
+    pub fn write_bytes(&self, p: impl AsRef<Path>, data: &[u8]) {
+        let p = p.as_ref();
+        if let Some(parent) = p.parent() {
+            self.mkdir_p(parent);
+        }
+        self.state.lock().unwrap().insert(p, NodeKind::File(data.to_vec()));
+    }
+
     pub fn symlink(&self, p: impl AsRef<Path>, target: impl AsRef<Path>) {
         self.state.lock().unwrap().insert(p.as_ref(), NodeKind::Symlink(target.as_ref().to_path_buf()));
     }
@@ -252,6 +262,24 @@ impl FileSystem for MockFs {
     async fn metadata(&self, path: &Path, follow_symlinks: bool) -> Result<EntryMetadata, FsError> {
         let st = self.state.lock().unwrap();
         st.meta(path, follow_symlinks)
+    }
+
+    // dired-6xv
+    async fn read_head(&self, path: &Path, max: usize) -> Result<Vec<u8>, FsError> {
+        let st = self.state.lock().unwrap();
+        st.check_fail("read", path)?;
+        let mut cur = path.to_path_buf();
+        for _ in 0..8 {
+            match st.nodes.get(&cur).map(|n| &n.kind) {
+                Some(NodeKind::File(d)) => return Ok(d[..d.len().min(max)].to_vec()),
+                Some(NodeKind::Symlink(t)) => {
+                    cur = if t.is_absolute() { t.clone() } else { cur.parent().unwrap_or(Path::new("/")).join(t) };
+                }
+                Some(NodeKind::Dir) => return Err(FsError::new("read", &cur, FsErrorKind::Other, "Is a directory")),
+                None => return Err(FsError::new("read", &cur, FsErrorKind::NotFound, "No such file or directory")),
+            }
+        }
+        Err(FsError::new("read", path, FsErrorKind::Other, "Too many levels of symbolic links"))
     }
 
     async fn copy(&self, from: &Path, to: &Path, options: CopyOptions) -> Result<(), FsError> {

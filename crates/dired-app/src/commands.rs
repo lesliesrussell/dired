@@ -20,6 +20,9 @@ use crate::registry;
 use crate::services::{Effect, OpenOutcome, OpenRequest};
 use crate::tasks;
 
+/// Name of the buffer that `split-window-to-file-view` fills.
+pub(crate) const VIEW_BUFFER: &str = "*View*"; // dired-6xv
+
 impl App {
     pub fn run_command(&mut self, name: &str) {
         let Some(def) = registry::lookup(name) else {
@@ -140,6 +143,10 @@ impl App {
             "dired-mark-files-regexp" => self.open_prompt("Mark files (regexp): ", "", PromptAction::MarkRegexp(EntryState::Marked)),
             "dired-flag-files-regexp" => self.open_prompt("Flag for deletion (regexp): ", "", PromptAction::MarkRegexp(EntryState::DeleteFlagged)),
             "dired-unmark-files-regexp" => self.open_prompt("Unmark files (regexp): ", "", PromptAction::MarkRegexp(EntryState::Unmarked)),
+            // dired-6xv
+            "split-window-to-file-view" => self.file_view_at_point(),
+            "scroll-other-window" => self.scroll_other_window(1),
+            "scroll-other-window-down" => self.scroll_other_window(-1),
             // dired-s23
             "jump-to-directory" => self.open_prompt("Jump to: ", "", PromptAction::Jump),
             "dired-bookmark-set" => {
@@ -744,6 +751,74 @@ impl App {
             }
         }
         out
+    }
+
+    // dired-6xv
+    /// Show the file at point in the view window: the one already showing
+    /// `*View*`, else the other window (splitting when there is only one).
+    /// The selected window and point stay where they are.
+    fn file_view_at_point(&mut self) {
+        let Some(d) = self.dir() else {
+            return self.error("split-window-to-file-view needs a directory buffer");
+        };
+        let Some(e) = d.point_entry() else { return };
+        if e.special {
+            return self.message("Nothing to view on this line");
+        }
+        let path = d.abs(&e.key);
+        let existing = self.find_buffer(VIEW_BUFFER);
+        let showing = existing.and_then(|b| self.windows.iter().find(|w| w.buffer == b).map(|w| w.id));
+        let target = match showing {
+            Some(w) => w,
+            None => match self.ensure_other_window() {
+                Ok(w) => w,
+                Err(e) => return self.error(e),
+            },
+        };
+        let loading = vec![TextLine::new(format!("Loading {}…", path.display()), LineStyle::Dim)];
+        let id = self.text_buffer(VIEW_BUFFER, TextRole::View, loading, false);
+        if let Some(w) = self.window_mut(target) {
+            w.buffer = id;
+            w.popup = false;
+            w.view = crate::windows::ViewState::default();
+        }
+        self.view_gen += 1;
+        let (fs, tx, gen) = (self.svc.fs.clone(), self.tx.clone(), self.view_gen);
+        self.spawn(tasks::file_view(fs, tx, path, gen));
+    }
+
+    // dired-6xv
+    /// Scroll the other window (preferring the view window) by a page, keeping
+    /// two lines of overlap. Only text windows scroll this way.
+    fn scroll_other_window(&mut self, dir: i64) {
+        let view = self.find_buffer(VIEW_BUFFER).and_then(|b| {
+            self.windows.iter().find(|w| w.buffer == b && w.id != self.selected).map(|w| w.id)
+        });
+        let Some(target) = view.or_else(|| self.next_window()) else {
+            return self.message("No other window");
+        };
+        let rows = self
+            .window_rects()
+            .into_iter()
+            .find(|(id, _, _)| *id == target)
+            .map(|(_, r, _)| (r.h as usize).saturating_sub(1 + self.border_rows).max(1))
+            .unwrap_or(1);
+        let buf = self.window(target).map(|w| w.buffer).unwrap();
+        let total = match self.buffer(buf).map(|b| &b.kind) {
+            Some(BufferKind::Text(t)) => t.lines.len(),
+            _ => return self.message("The other window cannot be scrolled; use C-x o"),
+        };
+        let page = rows.saturating_sub(2).max(1) as i64;
+        let max_top = total.saturating_sub(rows);
+        let win = self.window_mut(target).unwrap();
+        let top = win.view.top;
+        let new_top = (top as i64 + dir * page).clamp(0, max_top as i64) as usize;
+        if new_top == top {
+            let msg = if dir > 0 { "End of buffer" } else { "Beginning of buffer" };
+            return self.message(msg);
+        }
+        win.view.top = new_top;
+        win.view.point = win.view.point.clamp(new_top, (new_top + rows - 1).min(total.saturating_sub(1)));
     }
 
     // dired-vhh

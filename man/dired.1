@@ -531,6 +531,20 @@ Show a buffer in the other window
 .It Cm o
 In a directory buffer, visit the directory at point in the other window
 .Pq Ic dired\-find\-file\-other\-window .
+.It Cm v
+In a directory buffer, show the file at point in a read-only view window
+.Pq Ic split\-window\-to\-file\-view .
+The view uses the window already showing it, else the other window (splitting
+if there is only one); point stays in the directory window.
+Text files show a header and up to 500 lines or 64 KiB, binary files a hex
+dump of the first 256 bytes, directories up to 200 entries.
+Pipes, sockets and devices are never opened.
+Pressing
+.Cm v
+again refreshes the view; it does not follow point.
+.It Cm C\-M\-v , Cm C\-M\-b
+Scroll the other window (preferring the view window) forward or back one page
+.Pq Ic scroll\-other\-window , scroll\-other\-window\-down .
 .El
 .Pp
 The

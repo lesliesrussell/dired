@@ -35,6 +35,9 @@ cmds! {
     "dired-open-with" [] "Choose a program (configured [[open_with]] or built-in) to open the entry at point.";
     "dired-copy-name" [] "Copy the file names of the marked entries (else the entry at point) to the clipboard.";
     "dired-copy-path" [] "Copy the full paths of the marked entries (else the entry at point) to the clipboard.";
+    "split-window-to-file-view" [] "Show the file at point in a read-only view window (reused by the next call).";
+    "scroll-other-window" [] "Scroll the other window forward one page.";
+    "scroll-other-window-down" [] "Scroll the other window back one page.";
     "jump-to-directory" ["jump"] "Pick a bookmark or a frequently used directory and open it.";
     "dired-bookmark-set" [] "Bookmark the current directory under a name.";
     "dired-bookmark-delete" [] "Delete a bookmark.";

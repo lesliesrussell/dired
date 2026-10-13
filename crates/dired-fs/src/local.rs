@@ -198,6 +198,19 @@ impl FileSystem for LocalFs {
         blocking(move || stat(&p, follow_symlinks)).await
     }
 
+    // dired-6xv
+    async fn read_head(&self, path: &Path, max: usize) -> Result<Vec<u8>, FsError> {
+        use std::io::Read;
+        let p = path.to_path_buf();
+        blocking(move || {
+            let f = std::fs::File::open(&p).map_err(|e| FsError::from_io("read", &p, &e))?;
+            let mut buf = Vec::new();
+            f.take(max as u64).read_to_end(&mut buf).map_err(|e| FsError::from_io("read", &p, &e))?;
+            Ok(buf)
+        })
+        .await
+    }
+
     async fn copy(&self, from: &Path, to: &Path, options: CopyOptions) -> Result<(), FsError> {
         let (f, t) = (from.to_path_buf(), to.to_path_buf());
         blocking(move || copy_rec(&f, &t, options)).await

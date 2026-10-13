@@ -119,6 +119,10 @@ const DEFAULTS: &[(Mode, &str, &str)] = &[
     (Mode::Dired, "e", "dired-visit"),
     // dired-0cz
     (Mode::Dired, "O", "dired-open-with"),
+    // dired-6xv
+    (Mode::Dired, "v", "split-window-to-file-view"),
+    (Mode::Global, "C-M-v", "scroll-other-window"),
+    (Mode::Global, "C-M-b", "scroll-other-window-down"),
     // dired-s23
     (Mode::Dired, "J", "jump-to-directory"),
     (Mode::Global, "C-x r m", "dired-bookmark-set"),

@@ -96,6 +96,9 @@ pub struct App {
     pub(crate) history: HashMap<String, Vec<String>>,
     // dired-s23
     pub(crate) jumps: crate::jumps::Jumps,
+    // dired-6xv
+    /// Bumped by every file-view request; older results are dropped.
+    pub(crate) view_gen: u64,
     pub(crate) journal: Vec<JournalEntry>,
     pub(crate) diagnostics: Vec<Diagnostic>,
     pub(crate) viewport: usize,
@@ -140,6 +143,7 @@ impl App {
             messages: Vec::new(),
             history: HashMap::new(),
             jumps: crate::jumps::Jumps::default(), // dired-s23
+            view_gen: 0, // dired-6xv
             journal: Vec::new(),
             diagnostics: Vec::new(),
             viewport: 20,
@@ -1038,6 +1042,15 @@ impl App {
             AppEvent::ProcLine { buf, line, stderr } => self.proc_line(buf, line, stderr),
             AppEvent::ProcExit { buf, code, error } => self.proc_exit(buf, code, error),
             AppEvent::Completions { gen, items } => self.apply_completions(gen, items),
+            // dired-6xv
+            AppEvent::FileViewReady { gen, lines } => {
+                if gen == self.view_gen && self.find_buffer(crate::commands::VIEW_BUFFER).is_some() {
+                    let id = self.text_buffer(crate::commands::VIEW_BUFFER, TextRole::View, lines, false);
+                    for w in self.windows.iter_mut().filter(|w| w.buffer == id) {
+                        w.view = crate::windows::ViewState::default();
+                    }
+                }
+            }
             // dired-s23
             AppEvent::JumpChecked { path, exists } => {
                 if exists {

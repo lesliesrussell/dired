@@ -142,6 +142,11 @@ pub trait FileSystem: Send + Sync {
         Ok(path.to_path_buf())
     }
 
+    // dired-6xv
+    /// The first `max` bytes of a regular file (following symlinks). Only the
+    /// start is ever read, so huge files are cheap.
+    async fn read_head(&self, path: &Path, max: usize) -> Result<Vec<u8>, FsError>;
+
     /// Whether `path` exists (without following a final symlink).
     async fn exists(&self, path: &Path) -> bool {
         self.metadata(path, false).await.is_ok()

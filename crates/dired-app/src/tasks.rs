@@ -14,7 +14,8 @@ use dired_fs::{FileSystem, RawDirEntry, RenameOptions, RemoveOptions, TrashBacke
 use dired_process::{ProcessEvent, ProcessRunner, ProcessSpec};
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::buffers::BufferId;
+use crate::buffers::{BufferId, TextLine};
+use crate::fileview::{self, Content, Facts, ReadPlan};
 
 const META_BATCH: usize = 256;
 
@@ -34,6 +35,8 @@ pub enum AppEvent {
     PathResolved { path: PathBuf, is_dir: Result<bool, String>, visit: bool, other: bool },
     // dired-s23
     JumpChecked { path: PathBuf, exists: bool },
+    // dired-6xv
+    FileViewReady { gen: u64, lines: Vec<TextLine> },
     TaskFinished,
 }
 
@@ -228,6 +231,75 @@ pub async fn complete_path(fs: Arc<dyn FileSystem>, tx: Tx, gen: u64, input: Str
     };
     let items = items.into_iter().map(|n| format!("{head}{n}")).collect();
     let _ = tx.send(AppEvent::Completions { gen, items });
+}
+
+// dired-6xv
+/// Read what the file view shows for `path` and send it back as lines.
+pub async fn file_view(fs: Arc<dyn FileSystem>, tx: Tx, path: PathBuf, gen: u64) {
+    let lines = build_view(&*fs, &path).await;
+    let _ = tx.send(AppEvent::FileViewReady { gen, lines });
+}
+
+async fn build_view(fs: &dyn FileSystem, path: &Path) -> Vec<TextLine> {
+    let mut facts = Facts { path: path.to_path_buf(), size: None, modified: None, link_target: None };
+    let err = |facts: &Facts, m: String| fileview::render(facts, Content::Error(m));
+    let link = match fs.metadata(path, false).await {
+        Ok(m) => m,
+        Err(e) => return err(&facts, e.message),
+    };
+    facts.modified = link.modified;
+    let meta = if link.kind == dired_domain::FileKind::Symlink {
+        facts.link_target = link.symlink_target.clone();
+        match fs.metadata(path, true).await {
+            Ok(m) => m,
+            Err(e) => return err(&facts, format!("broken link: {}", e.message)),
+        }
+    } else {
+        link
+    };
+    facts.size = Some(meta.size);
+    facts.modified = meta.modified.or(facts.modified);
+    let content = match fileview::plan_for(meta.kind) {
+        ReadPlan::Skip => Content::NotRegular,
+        ReadPlan::Text => match fs.read_head(path, fileview::MAX_BYTES).await {
+            Err(e) => Content::Error(e.message),
+            Ok(bytes) if fileview::is_binary(&bytes) => Content::Binary { head: bytes },
+            Ok(bytes) => {
+                let (lines, truncated) = fileview::text_lines(&bytes, meta.size);
+                Content::Text { lines, truncated }
+            }
+        },
+        ReadPlan::Dir => match list_dir_names(fs, path).await {
+            Ok((names, more)) => Content::Dir { names, more },
+            Err(m) => Content::Error(m),
+        },
+    };
+    fileview::render(&facts, content)
+}
+
+/// Up to `DIR_ENTRIES` names, directories first (with a trailing `/`), and
+/// how many more there were. Enumeration stops after a few thousand entries.
+async fn list_dir_names(fs: &dyn FileSystem, path: &Path) -> Result<(Vec<String>, usize), String> {
+    const READ_CAP: usize = 5000;
+    let mut rx = fs.read_dir(path).await.map_err(|e| e.message)?;
+    let mut all: Vec<(bool, String)> = Vec::new();
+    'read: while let Some(batch) = rx.recv().await {
+        for e in batch.map_err(|e| e.message)? {
+            let is_dir = e.kind == dired_domain::FileKind::Dir;
+            all.push((!is_dir, dired_domain::display_name(&e.name)));
+            if all.len() >= READ_CAP {
+                break 'read;
+            }
+        }
+    }
+    all.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.to_lowercase().cmp(&b.1.to_lowercase())));
+    let more = all.len().saturating_sub(fileview::DIR_ENTRIES);
+    let names = all
+        .into_iter()
+        .take(fileview::DIR_ENTRIES)
+        .map(|(file, n)| if file { n } else { format!("{n}/") })
+        .collect();
+    Ok((names, more))
 }
 
 // dired-s23
