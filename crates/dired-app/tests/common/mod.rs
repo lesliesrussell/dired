@@ -8,7 +8,7 @@ use std::time::Duration;
 use dired_app::buffers::{BufferKind, PreviewBuffer};
 use dired_app::dirbuf::DirBuffer;
 use dired_app::{App, AppEvent, OpenOutcome, OpenRequest, Opener, Services};
-use dired_config::{Config, Diagnostic};
+use dired_config::{Config, Diagnostic, OpenWithEntry};
 use dired_domain::EntryState;
 use dired_fs::{FileSystem, LocalFs};
 use dired_testkit::{MockClock, MockFs, MockRunner, MockTrash};
@@ -17,12 +17,19 @@ use tokio::sync::mpsc::UnboundedReceiver;
 #[derive(Default)]
 pub struct MockOpener {
     pub opened: Mutex<Vec<OpenRequest>>,
+    // dired-0cz
+    pub opened_with: Mutex<Vec<(String, OpenRequest)>>,
 }
 
 impl Opener for MockOpener {
     fn open(&self, req: &OpenRequest) -> Result<OpenOutcome, String> {
         self.opened.lock().unwrap().push(req.clone());
         Ok(OpenOutcome::Detached("mock".into()))
+    }
+    // dired-0cz
+    fn open_with(&self, entry: &OpenWithEntry, req: &OpenRequest) -> Result<OpenOutcome, String> {
+        self.opened_with.lock().unwrap().push((entry.name.clone(), req.clone()));
+        Ok(OpenOutcome::Detached(entry.name.clone()))
     }
 }
 

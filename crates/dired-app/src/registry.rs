@@ -32,6 +32,7 @@ cmds! {
     "isearch-backward" [] "Incremental search backward over names/lines.";
     "dired-goto-file" [] "Prompt for a name substring and move to the next match.";
     "dired-visit" ["dired-find-file-at-point", "dired-view-file"] "Visit the entry at point: open directories, run the opener on files.";
+    "dired-open-with" [] "Choose a program (configured [[open_with]] or built-in) to open the entry at point.";
     "dired-up-directory" [] "Open or focus the parent directory.";
     "revert-buffer" ["dired-revert"] "Reload the listing asynchronously, preserving point.";
     "dired-mark" [] "Mark the entry at point and advance.";

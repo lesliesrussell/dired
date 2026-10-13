@@ -664,6 +664,13 @@ impl App {
                 ids.push(self.active);
                 ids.iter().filter_map(|i| self.buffer(*i)).map(|b| b.name.clone()).collect()
             }
+            // dired-0cz
+            Some(Completion::OpenWith) => match self.prompt.as_ref().map(|p| &p.action) {
+                Some(PromptAction::OpenWith { path }) => {
+                    self.open_with_entries(path).into_iter().map(|e| e.name).collect()
+                }
+                _ => return,
+            },
             _ => return,
         };
         let p = self.prompt.as_mut().unwrap();
@@ -736,7 +743,7 @@ impl App {
     fn complete(&mut self) {
         let p = self.prompt.as_mut().unwrap();
         match p.action.completion() {
-            Completion::Command | Completion::Buffer => {
+            Completion::Command | Completion::Buffer | Completion::OpenWith => {
                 if let Some(c) = p.candidates.get(p.selected).cloned() {
                     if c == p.input && p.candidates.len() > 1 {
                         p.selected = (p.selected + 1) % p.candidates.len();
@@ -794,9 +801,15 @@ impl App {
         // Completing prompts accept the selected candidate on inexact input.
         // (Empty input to kill-buffer means the current buffer.)
         let kill_default = p.action == PromptAction::KillBuffer && p.input.is_empty();
-        if !kill_default && matches!(p.action.completion(), Completion::Command | Completion::Buffer) {
-            let exact = match p.action.completion() {
-                Completion::Command => registry::lookup(&p.input).is_some(),
+        if !kill_default
+            && matches!(p.action.completion(), Completion::Command | Completion::Buffer | Completion::OpenWith)
+        {
+            let exact = match (p.action.completion(), &p.action) {
+                (Completion::Command, _) => registry::lookup(&p.input).is_some(),
+                // dired-0cz
+                (Completion::OpenWith, PromptAction::OpenWith { path }) => {
+                    self.open_with_entries(path).iter().any(|e| e.name == p.input)
+                }
                 _ => self.find_buffer(&p.input).is_some(),
             };
             if !exact {

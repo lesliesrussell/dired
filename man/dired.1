@@ -209,6 +209,17 @@ Directories open in a directory buffer, or an existing buffer for that
 directory is selected.
 Files are passed to an opener; see
 .Sx OPENERS .
+.It Cm O
+Choose a program to open the entry at point with
+.Pq Ic dired\-open\-with .
+The candidates are the configured
+.Cm [[open_with]]
+entries followed by the built-in
+.Dq System default
+and
+.Dq $EDITOR ;
+see
+.Sx OPENERS .
 .It Cm ^
 Visit the parent directory with point on the current one
 .Pq Ic dired\-up\-directory .
@@ -821,6 +832,17 @@ on macOS or
 .Xr xdg\-open 1
 elsewhere.
 While a program runs in the terminal the interface is suspended.
+.Pp
+.Cm O
+instead asks which program to use for the entry at point, completing over the
+.Cm [[open_with]]
+entries (then
+.Dq System default
+and, when set,
+.Dq $EDITOR ) .
+An entry with
+.Cm extensions
+is offered only for matching files.
 .Sh CONFIGURATION
 The configuration file is TOML.
 Errors never prevent
@@ -936,6 +958,17 @@ Unknown commands and duplicate key sequences are reported.
 .Li {file}
 and
 .Li {line} ) ,
+and
+.Cm terminal
+(run in the terminal instead of detached).
+.It Cm [[open_with]]
+.Cm name
+(label shown in the picker),
+.Cm command
+(argument vector with
+.Li {file} ) ,
+.Cm extensions
+(list, case-insensitive; empty offers it for every entry),
 and
 .Cm terminal
 (run in the terminal instead of detached).

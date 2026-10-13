@@ -207,6 +207,23 @@ pub struct OpenerRule {
     pub terminal: bool,
 }
 
+// dired-0cz
+/// A candidate for "open with" (`O`): a labelled program for the entry at point.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct OpenWithEntry {
+    /// Label shown in (and typed into) the picker.
+    pub name: String,
+    /// File extensions (without dot), case-insensitive. Empty offers it for every entry.
+    #[serde(default)]
+    pub extensions: Vec<String>,
+    /// argv; `{file}` is the path.
+    pub command: Vec<String>,
+    /// Runs in the terminal (the UI is suspended) instead of detached.
+    #[serde(default)]
+    pub terminal: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ShellConfig {
@@ -260,6 +277,8 @@ pub struct Config {
     pub theme: ThemeConfig,
     pub keymap: Vec<KeyBindingSpec>,
     pub opener: Vec<OpenerRule>,
+    // dired-0cz
+    pub open_with: Vec<OpenWithEntry>,
     pub shell: ShellConfig,
     pub search: SearchConfig,
     pub safety: SafetyConfig,
@@ -338,8 +357,9 @@ impl Config {
                 format!("config version {version} is not {CONFIG_VERSION}; reading best-effort"),
             ));
         }
-        const KNOWN: [&str; 8] =
-            ["version", "display", "theme", "keymap", "opener", "shell", "search", "safety"];
+        // dired-0cz
+        const KNOWN: [&str; 9] =
+            ["version", "display", "theme", "keymap", "opener", "open_with", "shell", "search", "safety"];
         for k in table.keys() {
             if !KNOWN.contains(&k.as_str()) {
                 diags.push(Diagnostic::warning(source, format!("unknown key `{k}`")));
@@ -359,6 +379,21 @@ impl Config {
                 n == 1
             })
             .collect();
+        // dired-0cz
+        let open_with: Vec<OpenWithEntry> = list(&table, "open_with", source, &mut diags);
+        let open_with = open_with
+            .into_iter()
+            .filter(|e| {
+                let ok = !e.name.trim().is_empty() && !e.command.is_empty();
+                if !ok {
+                    diags.push(Diagnostic::error(
+                        source,
+                        format!("open_with `{}`: needs a non-empty name and command", e.name),
+                    ));
+                }
+                ok
+            })
+            .collect();
         let theme: ThemeConfig = section(&table, "theme", source, &mut diags);
         validate_theme(&theme, source, &mut diags);
         let config = Config {
@@ -367,6 +402,7 @@ impl Config {
             theme,
             keymap,
             opener: list(&table, "opener", source, &mut diags),
+            open_with,
             shell: section(&table, "shell", source, &mut diags),
             search: section(&table, "search", source, &mut diags),
             safety: section(&table, "safety", source, &mut diags),
@@ -420,6 +456,35 @@ mod tests {
         let (c, d) = Config::parse(include_str!("../../../examples/config.toml"), "examples/config.toml");
         assert!(d.is_empty(), "{d:?}");
         assert!(!c.keymap.is_empty() && !c.theme.styles.is_empty());
+    }
+
+    // dired-0cz
+    #[test]
+    fn open_with_entries_parse_and_validate() {
+        let (c, d) = Config::parse(
+            r#"
+version = 1
+[[open_with]]
+name = "Preview"
+command = ["open", "-a", "Preview", "{file}"]
+extensions = ["png"]
+[[open_with]]
+name = "Neovim"
+command = ["nvim", "{file}"]
+terminal = true
+[[open_with]]
+name = ""
+command = ["x"]
+[[open_with]]
+name = "Empty"
+command = []
+"#,
+            "t",
+        );
+        assert_eq!(c.open_with.len(), 2);
+        assert_eq!(c.open_with[0].extensions, vec!["png"]);
+        assert!(!c.open_with[0].terminal && c.open_with[1].terminal);
+        assert_eq!(d.len(), 2, "{d:?}");
     }
 
     #[test]

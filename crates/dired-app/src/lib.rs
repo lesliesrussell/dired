@@ -18,5 +18,5 @@ pub mod windows;
 
 pub use app::{expand_path, normalize, App};
 pub use commands::parse_rg_json;
-pub use services::{Effect, OpenOutcome, OpenRequest, Opener, Services, SystemOpener};
+pub use services::{builtin_open_with, Effect, OpenOutcome, OpenRequest, Opener, Services, SystemOpener};
 pub use tasks::AppEvent;

@@ -5,7 +5,7 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use dired_config::OpenerRule;
+use dired_config::{OpenWithEntry, OpenerRule};
 use dired_domain::clock::Clock;
 use dired_fs::{FileSystem, TrashBackend};
 use dired_process::{ProcessRunner, ProcessSpec};
@@ -26,6 +26,52 @@ pub enum OpenOutcome {
 
 pub trait Opener: Send + Sync {
     fn open(&self, req: &OpenRequest) -> Result<OpenOutcome, String>;
+    // dired-0cz
+    /// Open with an explicitly chosen candidate (the "open with" picker).
+    fn open_with(&self, entry: &OpenWithEntry, req: &OpenRequest) -> Result<OpenOutcome, String>;
+}
+
+// dired-0cz
+/// Built-in "open with" candidates, offered after the configured ones:
+/// the platform opener and, when set, `$VISUAL`/`$EDITOR`.
+pub fn builtin_open_with() -> Vec<OpenWithEntry> {
+    let prog = if cfg!(target_os = "macos") {
+        "open"
+    } else if cfg!(windows) {
+        "explorer"
+    } else {
+        "xdg-open"
+    };
+    let mut v = vec![OpenWithEntry {
+        name: "System default".into(),
+        extensions: vec![],
+        command: vec![prog.into(), "{file}".into()],
+        terminal: false,
+    }];
+    let editor = std::env::var("VISUAL")
+        .ok()
+        .or_else(|| std::env::var("EDITOR").ok())
+        .filter(|e| !e.trim().is_empty());
+    if let Some(ed) = editor {
+        let mut command = shlex::split(&ed).filter(|w| !w.is_empty()).unwrap_or_else(|| vec![ed.clone()]);
+        command.push("{file}".into());
+        v.push(OpenWithEntry { name: "$EDITOR".into(), extensions: vec![], command, terminal: true });
+    }
+    v
+}
+
+// dired-0cz
+/// Run `command` (expanded for `req`) detached or, with `terminal`, in the foreground.
+fn run_command(command: &[String], terminal: bool, req: &OpenRequest) -> Result<OpenOutcome, String> {
+    let cwd = req.path.parent().unwrap_or(Path::new("/")).to_path_buf();
+    let argv = expand(command, req);
+    if terminal {
+        let mut it = argv.into_iter();
+        let prog = it.next().ok_or("empty opener command")?;
+        return Ok(OpenOutcome::Foreground(ProcessSpec::new(prog, it.collect(), cwd)));
+    }
+    spawn_detached(argv, &cwd)?;
+    Ok(OpenOutcome::Detached(command.join(" ")))
 }
 
 /// Opener driven by config rules, then `$VISUAL`/`$EDITOR`, then the
@@ -79,15 +125,8 @@ impl Opener for SystemOpener {
         if let Some(rule) = self.rules.iter().find(|r| {
             r.extensions.is_empty() || r.extensions.iter().any(|e| e.to_lowercase() == ext)
         }) {
-            let argv = expand(&rule.command, req);
-            if rule.terminal {
-                let mut it = argv.into_iter();
-                let prog = it.next().ok_or("empty opener command")?;
-                return Ok(OpenOutcome::Foreground(ProcessSpec::new(prog, it.collect(), cwd)));
-            }
-            let desc = rule.command.join(" ");
-            spawn_detached(argv, &cwd)?;
-            return Ok(OpenOutcome::Detached(desc));
+            // dired-0cz
+            return run_command(&rule.command, rule.terminal, req);
         }
         let editor = std::env::var("VISUAL")
             .ok()
@@ -113,6 +152,11 @@ impl Opener for SystemOpener {
         };
         spawn_detached(vec![prog.into(), req.path.as_os_str().to_os_string()], &cwd)?;
         Ok(OpenOutcome::Detached(prog.into()))
+    }
+
+    // dired-0cz
+    fn open_with(&self, entry: &OpenWithEntry, req: &OpenRequest) -> Result<OpenOutcome, String> {
+        run_command(&entry.command, entry.terminal, req)
     }
 }
 

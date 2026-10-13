@@ -14,6 +14,8 @@ pub enum Completion {
     Path,
     Command,
     Buffer,
+    // dired-0cz
+    OpenWith,
 }
 
 /// What happens when the prompt is submitted.
@@ -44,6 +46,8 @@ pub enum PromptAction {
     ConfirmExecute(BufferId),
     ConflictRename { buf: BufferId, item: usize },
     Isearch { forward: bool, origin: usize },
+    // dired-0cz
+    OpenWith { path: PathBuf },
 }
 
 impl PromptAction {
@@ -64,6 +68,8 @@ impl PromptAction {
             PromptAction::Filter => "filter",
             PromptAction::SwitchBuffer | PromptAction::KillBuffer | PromptAction::SwitchBufferOther => "buffer",
             PromptAction::ExtendedCommand => "command",
+            // dired-0cz
+            PromptAction::OpenWith { .. } => "open-with",
             PromptAction::Isearch { .. } => "isearch",
             PromptAction::ConfirmShell { .. }
             | PromptAction::ConfirmKill(_)
@@ -83,6 +89,8 @@ impl PromptAction {
             | PromptAction::ConflictRename { .. } => Completion::Path,
             PromptAction::ExtendedCommand => Completion::Command,
             PromptAction::SwitchBuffer | PromptAction::KillBuffer | PromptAction::SwitchBufferOther => Completion::Buffer,
+            // dired-0cz
+            PromptAction::OpenWith { .. } => Completion::OpenWith,
             _ => Completion::None,
         }
     }

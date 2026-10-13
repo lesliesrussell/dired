@@ -64,6 +64,8 @@ impl App {
             }
             "dired-goto-file" => self.open_prompt("Goto file: ", "", PromptAction::GotoFile),
             "dired-visit" => self.visit_at_point(),
+            // dired-0cz
+            "dired-open-with" => self.open_with_at_point(),
             "dired-up-directory" => self.up_directory(),
             "revert-buffer" => {
                 let id = self.active;
@@ -306,6 +308,13 @@ impl App {
                 self.open_dir(expand_path(&input, &base));
             }
             PromptAction::FindFile => self.open_path(expand_path(&input, &base), true),
+            // dired-0cz
+            PromptAction::OpenWith { path } => {
+                match self.open_with_entries(&path).into_iter().find(|e| e.name == input) {
+                    Some(entry) => self.open_file_with(&entry, &path),
+                    None => self.error(format!("No such open-with candidate `{input}`")),
+                }
+            }
             // dired-ta2
             PromptAction::OpenDirectoryOther => {
                 if self.select_other_window() {
@@ -568,6 +577,42 @@ impl App {
             self.open_dir(abs);
         } else {
             self.visit_file(&abs, None);
+        }
+    }
+
+    // dired-0cz
+    /// Candidates for `path`: configured entries, then built-ins, those whose
+    /// `extensions` don't match hidden; the first of a duplicated name wins.
+    pub(crate) fn open_with_entries(&self, path: &Path) -> Vec<dired_config::OpenWithEntry> {
+        let ext = path.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
+        let mut out: Vec<dired_config::OpenWithEntry> = Vec::new();
+        for e in self.config.open_with.iter().cloned().chain(crate::services::builtin_open_with()) {
+            let applies = e.extensions.is_empty() || e.extensions.iter().any(|x| x.to_lowercase() == ext);
+            if applies && !out.iter().any(|o| o.name == e.name) {
+                out.push(e);
+            }
+        }
+        out
+    }
+
+    // dired-0cz
+    fn open_with_at_point(&mut self) {
+        let d = self.dir().unwrap();
+        let Some(e) = d.point_entry() else { return };
+        if e.special {
+            return self.message("Nothing to open on this line");
+        }
+        let abs = d.abs(&e.key);
+        let label = format!("Open {} with: ", e.name);
+        self.open_prompt(label, "", PromptAction::OpenWith { path: abs });
+    }
+
+    // dired-0cz
+    fn open_file_with(&mut self, entry: &dired_config::OpenWithEntry, path: &Path) {
+        match self.svc.opener.open_with(entry, &OpenRequest { path: path.to_path_buf(), line: None }) {
+            Ok(OpenOutcome::Detached(how)) => self.message(format!("Opened {} with {how}", path.display())),
+            Ok(OpenOutcome::Foreground(spec)) => self.effects.push(Effect::Foreground(spec)),
+            Err(e) => self.error(e),
         }
     }
 
