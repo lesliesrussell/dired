@@ -785,6 +785,7 @@ Undo is best-effort. If files changed in the meantime, some steps may fail, and 
 | `dired-sort-reverse` | Reverse the sort order |
 | `dired-sort-toggle-dirs-first` | List directories first, or mixed in |
 | `cycle-theme` | Try the next color theme |
+| `load-theme` | Ask for a theme by name (`TAB` completes, `C-n` / `C-p` pick) and switch to it |
 | `cycle-style` | Try the next UI style (rich, clean, minimal) |
 | `dired-reload-config` | Re-read the config file |
 | `view-diagnostics`, `view-messages` | Configuration problems / message history |
@@ -832,7 +833,7 @@ Everything still goes through the theme, so `NO_COLOR` and the `mono` theme keep
 
 ### Themes
 
-Built-in: `default`, `high-contrast`, `mono`, `nord`, `gruvbox`, `solarized-dark`, `dracula`. Run `M-x cycle-theme` to preview them live. Hex colors are exact on truecolor terminals (`COLORTERM=truecolor`) and fall back to the nearest ANSI color elsewhere. `NO_COLOR` selects `mono`.
+Built-in: `default`, `high-contrast`, `mono`, `nord`, `gruvbox`, `solarized-dark`, `dracula`. Run `M-x cycle-theme` to step through them, or `M-x load-theme` to pick one by name (the prompt starts on the active theme). Both last for the session; put `name = "..."` under `[theme]` to make it permanent. Hex colors are exact on truecolor terminals (`COLORTERM=truecolor`) and fall back to the nearest ANSI color elsewhere. `NO_COLOR` selects `mono`.
 
 ```toml
 [theme]

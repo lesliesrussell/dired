@@ -253,6 +253,17 @@ impl App {
                 }
             }
             // dired-7yu
+            // dired-2hn
+            "load-theme" => {
+                let cur = self.config.theme.name.clone().unwrap_or_else(|| "default".into());
+                self.open_prompt("Load theme: ", "", PromptAction::LoadTheme);
+                // Start on the active theme so RET without typing keeps it.
+                if let (Some(i), Some(p)) =
+                    (dired_config::THEMES.iter().position(|t| *t == cur), self.prompt.as_mut())
+                {
+                    p.selected = i;
+                }
+            }
             // dired-p2d
             "cycle-style" => {
                 let cur = self.config.display.style.as_str();
@@ -318,6 +329,16 @@ impl App {
                 self.open_dir(expand_path(&input, &base));
             }
             PromptAction::FindFile => self.open_path(expand_path(&input, &base), true),
+            // dired-2hn
+            PromptAction::LoadTheme => {
+                if dired_config::THEMES.contains(&input.as_str()) {
+                    self.config.theme.name = Some(input.clone());
+                    self.config_gen += 1;
+                    self.message(format!("Theme: {input}"));
+                } else {
+                    self.error(format!("No such theme `{input}` ({})", dired_config::THEMES.join(", ")));
+                }
+            }
             // dired-0cz
             PromptAction::OpenWith { path } => {
                 match self.open_with_entries(&path).into_iter().find(|e| e.name == input) {

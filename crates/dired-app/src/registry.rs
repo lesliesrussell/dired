@@ -85,7 +85,8 @@ cmds! {
     "switch-to-buffer-other-window" [] "Show a buffer in the other window.";
     "dired-find-file-other-window" ["dired-visit-other-window"] "Visit the entry at point in the other window.";
     "cycle-style" [] "Switch to the next UI style: rich, clean, minimal (for this session).";
-    "cycle-theme" ["load-theme"] "Switch to the next built-in theme (for this session).";
+    "cycle-theme" [] "Switch to the next built-in theme (for this session).";
+    "load-theme" [] "Prompt for a built-in theme (with completion) and switch to it for this session.";
     "view-diagnostics" [] "Show the *Diagnostics* buffer.";
     "view-messages" [] "Show the *Messages* buffer.";
     "operation-execute" [] "Execute the previewed operation.";

@@ -16,6 +16,17 @@ pub enum Completion {
     Buffer,
     // dired-0cz
     OpenWith,
+    // dired-2hn
+    Theme,
+}
+
+impl Completion {
+    // dired-2hn
+    /// Completions whose candidate list is a closed set the user picks from:
+    /// the highlighted candidate is accepted, and C-n/C-p move it.
+    pub fn picks(self) -> bool {
+        matches!(self, Completion::Command | Completion::Buffer | Completion::OpenWith | Completion::Theme)
+    }
 }
 
 /// What happens when the prompt is submitted.
@@ -48,6 +59,8 @@ pub enum PromptAction {
     Isearch { forward: bool, origin: usize },
     // dired-0cz
     OpenWith { path: PathBuf },
+    // dired-2hn
+    LoadTheme,
 }
 
 impl PromptAction {
@@ -70,6 +83,7 @@ impl PromptAction {
             PromptAction::ExtendedCommand => "command",
             // dired-0cz
             PromptAction::OpenWith { .. } => "open-with",
+            PromptAction::LoadTheme => "theme", // dired-2hn
             PromptAction::Isearch { .. } => "isearch",
             PromptAction::ConfirmShell { .. }
             | PromptAction::ConfirmKill(_)
@@ -91,6 +105,7 @@ impl PromptAction {
             PromptAction::SwitchBuffer | PromptAction::KillBuffer | PromptAction::SwitchBufferOther => Completion::Buffer,
             // dired-0cz
             PromptAction::OpenWith { .. } => Completion::OpenWith,
+            PromptAction::LoadTheme => Completion::Theme, // dired-2hn
             _ => Completion::None,
         }
     }
@@ -174,10 +189,7 @@ impl Prompt {
     // dired-t1z
     /// Whether C-n/C-p/Up/Down select among candidates (rather than walk history).
     fn navigable(&self) -> bool {
-        matches!(
-            self.action.completion(),
-            Completion::Command | Completion::Buffer | Completion::OpenWith
-        ) && !self.candidates.is_empty()
+        self.action.completion().picks() && !self.candidates.is_empty()
     }
 
     pub fn edit(&mut self, key: Key) -> EditResult {
