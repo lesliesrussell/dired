@@ -8,7 +8,7 @@ use dired_domain::{format_mtime, format_size, EntryState, FileKind};
 use ratatui::layout::{Constraint, Direction, Layout, Position, Rect};
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::Paragraph;
+use ratatui::widgets::{Block, BorderType, Paragraph};
 use ratatui::Frame;
 use std::time::SystemTime;
 
@@ -75,6 +75,17 @@ impl Col {
             Col::Perms => 10,
             Col::Size => 6,
             Col::Mtime => 16,
+        }
+    }
+}
+
+impl Col {
+    // dired-p2d
+    fn label(self) -> &'static str {
+        match self {
+            Col::Perms => "Mode",
+            Col::Size => "Size",
+            Col::Mtime => "Modified",
         }
     }
 }
@@ -179,7 +190,7 @@ pub fn draw(f: &mut Frame, app: &mut App, theme: &Theme) {
 }
 
 // dired-p2d
-/// Draw one window: body, scrollbar and mode line. Returns the cursor
+/// Draw one window: frame, body, scrollbar and mode line. Returns the cursor
 /// position when this is the selected window and a Wdired edit is active.
 #[allow(clippy::too_many_arguments)]
 fn draw_window(
@@ -197,25 +208,33 @@ fn draw_window(
     if rect.width == 0 || rect.height == 0 {
         return None;
     }
-    if r.x > 0 {
+    // Side-by-side windows are separated by a rule, unless frames do it.
+    if r.x > 0 && !cx.ui.borders {
         let rule: Vec<Line> = (0..rect.height).map(|_| Line::from(Span::styled("│", theme.dim))).collect();
         f.render_widget(Paragraph::new(rule), Rect::new(rect.x - 1, rect.y, 1, rect.height));
     }
-    let body = Rect::new(rect.x, rect.y, rect.width, rect.height.saturating_sub(1));
+    let outer = Rect::new(rect.x, rect.y, rect.width, rect.height.saturating_sub(1));
     let mode = Rect::new(rect.x, rect.y + rect.height.saturating_sub(1), rect.width, 1);
+    let body = if cx.ui.borders { Block::bordered().inner(outer) } else { outer };
     let buf = app.window(wid).map(|w| w.buffer)?;
     let view = app.render_view(wid, body.height as usize);
     let status = app.status_for(buf);
+    let name = app.buffer(buf).map(|b| b.name.clone()).unwrap_or_default();
 
-    // Content extent: (total rows, rows visible), reusing the preview lines.
+    // Content extent: (total rows, rows visible), the border title, and the
+    // preview lines (computed once and reused for drawing).
     let dir_hdr = cx.ui.dir_header_rows();
     let mut preview: Option<(Vec<TextLine>, usize)> = None;
     let mut hdr_rows = 0;
     let mut has_pos = true;
+    let mut title = format!(" {name} ");
     let (total, shown) = match app.buffer_mut(buf).map(|b| &mut b.kind) {
         Some(BufferKind::Dir(d)) => {
             d.ensure_view();
             hdr_rows = dir_hdr;
+            let scan = d.scan_summary();
+            let state = if scan != "done" { format!("  [{scan}]") } else { String::new() };
+            title = format!(" {}{state} ", d.root.display());
             (d.rows().len(), (body.height as usize).saturating_sub(dir_hdr as usize))
         }
         Some(BufferKind::Text(t)) => (t.lines.len(), body.height as usize),
@@ -228,8 +247,25 @@ fn draw_window(
         }
         None => (0, 0),
     };
+
+    // Frame first, so the content and scrollbar draw over it.
+    if cx.ui.borders && outer.width >= 2 && outer.height >= 2 {
+        let accent = if selected { theme.header } else { theme.dim };
+        let title = truncate(&title, (outer.width as usize).saturating_sub(4));
+        let block = Block::bordered()
+            .border_type(BorderType::Rounded)
+            .border_style(accent)
+            .title(Line::from(Span::styled(title, accent)));
+        f.render_widget(block, outer);
+    }
+
+    // Scrollbar: on the right border when framed, else in a reserved column.
     let show_sb = cx.ui.scrollbar && total > shown && body.width > 8 && shown > 0;
-    let (body, sb) = if show_sb {
+    let (body, sb) = if show_sb && cx.ui.borders {
+        let top = outer.y + 1 + hdr_rows;
+        let h = outer.height.saturating_sub(2 + hdr_rows);
+        (body, Some(Rect::new(outer.x + outer.width - 1, top, 1, h)))
+    } else if show_sb {
         let sb = Rect::new(body.x + body.width - 1, body.y + hdr_rows, 1, body.height.saturating_sub(hdr_rows));
         (Rect::new(body.x, body.y, body.width - 1, body.height), Some(sb))
     } else {
@@ -237,27 +273,29 @@ fn draw_window(
     };
 
     let mut cursor = None;
-    match app.buffer_mut(buf).map(|b| &mut b.kind) {
-        Some(BufferKind::Dir(d)) => {
-            let c = draw_dir(f, body, d, cx, view.point, view.top, selected);
-            if selected {
-                cursor = c;
+    if body.width > 0 && body.height > 0 {
+        match app.buffer_mut(buf).map(|b| &mut b.kind) {
+            Some(BufferKind::Dir(d)) => {
+                let c = draw_dir(f, body, d, cx, view.point, view.top, selected);
+                if selected {
+                    cursor = c;
+                }
             }
-        }
-        Some(BufferKind::Text(t)) => draw_lines(f, body, &t.lines, view.top, Some(view.point), theme, selected),
-        Some(BufferKind::Preview(_)) => {
-            if let Some((lines, first)) = &preview {
-                draw_lines(f, body, lines, view.top, Some(first + view.point), theme, selected);
+            Some(BufferKind::Text(t)) => draw_lines(f, body, &t.lines, view.top, Some(view.point), theme, selected),
+            Some(BufferKind::Preview(_)) => {
+                if let Some((lines, first)) = &preview {
+                    draw_lines(f, body, lines, view.top, Some(first + view.point), theme, selected);
+                }
             }
+            None => {}
         }
-        None => {}
     }
     if let Some(sb) = sb {
         widgets::draw_scrollbar(f, sb, total, view.top, shown, theme);
     }
+
     // Mode line (the prefix-key hint shows in the selected window's).
     let w = mode.width as usize;
-    // dired-p2d
     match cx.ui.mode_line {
         dired_config::ModeLine::Segmented => {
             let pos = if total == 0 || !has_pos { None } else { Some((view.point + 1, total)) };
@@ -471,11 +509,25 @@ fn dir_header_lines(
     d: &DirBuffer,
     cx: &DrawCx,
     w: usize,
-    _prefix_w: usize,
-    _cols: &[Col],
-    _gap: usize,
+    prefix_w: usize,
+    cols: &[Col],
+    gap: usize,
 ) -> Vec<Line<'static>> {
     let theme = cx.theme;
+    if cx.ui.borders {
+        // The path is in the border title; the header row labels the columns.
+        let mut s = " ".repeat(prefix_w);
+        for c in cols {
+            s.push_str(&pad_right(c.label(), c.width()));
+            s.push_str(&" ".repeat(gap));
+        }
+        s.push_str("Name");
+        let mut out = vec![Line::from(Span::styled(truncate(&s, w), theme.header))];
+        if cx.ui.header_rule {
+            out.push(Line::from(Span::styled("─".repeat(w), theme.dim)));
+        }
+        return out;
+    }
     let gutter = if cx.ui.roomy { " " } else { "" };
     let mut header = format!("{gutter}  {}:", d.root.display());
     let scan = d.scan_summary();

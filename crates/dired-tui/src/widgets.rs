@@ -140,7 +140,8 @@ pub fn segmented_mode_line(
     let name = segs.next().unwrap_or("").to_string();
     let mut rest: Vec<String> = segs.map(str::to_string).collect();
     if let Some((n, t)) = pos {
-        rest.push(format!("{n}/{t}"));
+        // First, so the position survives truncation on narrow windows.
+        rest.insert(0, format!("{n}/{t}"));
     }
     if selected {
         if let Some(h) = hint {

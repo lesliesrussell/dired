@@ -166,3 +166,89 @@ async fn wdired_cursor_tracks_name_start(snippets: &[&str]) {
 async fn wdired_cursor_tracks_name_start_minimal_and_clean() {
     wdired_cursor_tracks_name_start(&["[display]\nstyle = \"minimal\"\n", "[display]\nstyle = \"clean\"\n"]).await;
 }
+
+const RICH: &str = "version = 1\n[display]\nstyle = \"rich\"\n";
+
+#[tokio::test]
+async fn rich_draws_a_titled_rounded_frame_with_column_labels() {
+    let mut ui = Ui::open(files(3), cfg(RICH), 60, 12, "/w").await;
+    let rows = ui.draw();
+    let joined = rows.join("\n");
+    assert!(rows[0].starts_with('╭') && rows[0].ends_with('╮'), "{joined}");
+    assert!(rows[0].contains("/w"), "title carries the path:\n{joined}");
+    assert!(rows[1].starts_with('│') && rows[1].ends_with('│'), "{joined}");
+    assert!(rows[1].contains("Size") && rows[1].contains("Name"), "column labels:\n{joined}");
+    assert!(rows[9].starts_with('╰') && rows[9].ends_with('╯'), "{joined}");
+    assert!(rows[10].contains("/4"), "mode line sits below the frame (n/4: .., f00..f02):\n{joined}");
+}
+
+#[tokio::test]
+async fn rich_keeps_the_last_entry_visible_and_scrolls_inside_the_frame() {
+    let mut ui = Ui::open(files(40), cfg(RICH), 60, 12, "/w").await;
+    ui.app.press("M->");
+    let rows = ui.draw();
+    assert!(rows.iter().any(|r| r.contains("f39")), "{}", rows.join("\n"));
+    // The scrollbar sits on the right border, between the corners.
+    assert!(rows[2..9].iter().any(|r| r.ends_with('█')), "{}", rows.join("\n"));
+}
+
+#[tokio::test]
+async fn two_rich_windows_get_two_frames() {
+    let fs = files(3);
+    fs.write("/o/x", "");
+    let mut ui = Ui::open(fs, cfg(RICH), 100, 12, "/w").await;
+    ui.app.press("C-x 4 d");
+    ui.app.press("C-a C-k");
+    ui.app.type_text("/o");
+    ui.app.press("RET");
+    ui.settle().await;
+    let rows = ui.draw();
+    assert_eq!(rows[0].matches('╭').count(), 2, "{}", rows.join("\n"));
+    assert!(rows[0].contains("/w") && rows[0].contains("/o"), "{}", rows.join("\n"));
+}
+
+#[tokio::test]
+async fn borders_can_be_turned_on_in_clean_and_off_in_rich() {
+    let mut ui = Ui::open(files(3), cfg("version = 1\n[display.ui]\nborders = true\n"), 60, 12, "/w").await;
+    assert!(ui.draw()[0].starts_with('╭'));
+    let off = "version = 1\n[display]\nstyle = \"rich\"\n[display.ui]\nborders = false\n";
+    let mut ui = Ui::open(files(3), cfg(off), 60, 12, "/w").await;
+    assert!(!ui.draw()[0].starts_with('╭'));
+}
+
+/// Review focus 1. If a size panics in `minimal` too, the cause predates this
+/// work: drop that size from the list and file a bead instead of fixing it here.
+#[tokio::test]
+async fn tiny_terminals_never_panic() {
+    for style in ["minimal", "clean", "rich"] {
+        for (w, h) in [(1u16, 1u16), (2, 2), (3, 3), (5, 4), (10, 4), (20, 3), (40, 5)] {
+            let c = cfg(&format!("version = 1\n[display]\nstyle = \"{style}\"\n[display.ui]\nicons = true\n"));
+            let mut ui = Ui::open(files(30), c, w, h, "/w").await;
+            ui.draw();
+            ui.app.press("M-x"); // popup in a tiny space
+            ui.draw();
+            ui.app.press("C-g");
+            ui.app.press("M->");
+            ui.draw();
+        }
+    }
+}
+
+/// Review focus 5: control characters in paths and names never reach the screen.
+#[tokio::test]
+async fn titles_and_popup_are_sanitized() {
+    let fs = Arc::new(MockFs::new());
+    fs.write("/we\u{1b}ird/\u{1b}]52;c;x\u{7}evil", "");
+    for style in ["minimal", "clean", "rich"] {
+        let c = cfg(&format!("version = 1\n[display]\nstyle = \"{style}\"\n"));
+        let mut ui = Ui::open(fs.clone(), c, 80, 12, "/we\u{1b}ird").await;
+        ui.app.press("C-x C-f"); // pre-filled path prompt plus completion popup
+        let joined = ui.draw().join("\n");
+        assert!(!joined.contains('\u{1b}') && !joined.contains('\u{7}'), "{style}:\n{joined}");
+    }
+}
+
+#[tokio::test]
+async fn wdired_cursor_tracks_name_start_in_rich() {
+    wdired_cursor_tracks_name_start(&["[display]\nstyle = \"rich\"\n"]).await;
+}
