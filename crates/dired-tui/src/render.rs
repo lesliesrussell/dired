@@ -10,9 +10,13 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 use ratatui::Frame;
+use std::time::SystemTime;
+
+use dired_config::UiOptions;
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 use crate::theme::Theme;
+use crate::widgets;
 
 const MAX_CANDIDATES: usize = 6;
 
@@ -86,6 +90,15 @@ fn columns(cfg: &[String]) -> Vec<Col> {
         .collect()
 }
 
+// dired-p2d
+/// Everything the drawing helpers need, resolved once per frame.
+struct DrawCx<'a> {
+    theme: &'a Theme,
+    ui: &'a UiOptions,
+    cols: &'a [Col],
+    now: SystemTime,
+}
+
 pub fn draw(f: &mut Frame, app: &mut App, theme: &Theme) {
     let area = f.area();
     if app.buffers().is_empty() {
@@ -106,7 +119,10 @@ pub fn draw(f: &mut Frame, app: &mut App, theme: &Theme) {
     app.set_window_area(warea.width, warea.height);
     app.prepare_frame();
     let hint = app.key_hint();
+    // dired-p2d
+    let ui = UiOptions::resolve(&app.config.display);
     let cols = columns(&app.config.display.columns);
+    let cx = DrawCx { theme, ui: &ui, cols: &cols, now: SystemTime::now() };
     let mut cursor: Option<Position> = None;
 
     for (wid, r, selected) in app.window_rects() {
@@ -125,7 +141,7 @@ pub fn draw(f: &mut Frame, app: &mut App, theme: &Theme) {
         let status = app.status_for(buf);
         match app.buffer_mut(buf).map(|b| &mut b.kind) {
             Some(BufferKind::Dir(d)) => {
-                let c = draw_dir(f, body, d, theme, &cols, view.point, view.top, selected);
+                let c = draw_dir(f, body, d, &cx, view.point, view.top, selected);
                 if selected {
                     cursor = c;
                 }
@@ -226,12 +242,13 @@ fn draw_dir(
     f: &mut Frame,
     area: Rect,
     d: &mut DirBuffer,
-    theme: &Theme,
-    cfg_cols: &[Col],
+    cx: &DrawCx,
     point: usize,
     top: usize,
     active: bool,
 ) -> Option<Position> {
+    let theme = cx.theme; // dired-p2d
+    let cfg_cols = cx.cols;
     let w = area.width as usize;
     let mut lines = Vec::with_capacity(area.height as usize);
     let mut header = format!("  {}:", d.root.display());
@@ -303,7 +320,13 @@ fn draw_dir(
                 (Col::Mtime, Some(m)) => pad_right(&format_mtime(m.modified), c.width()),
                 (_, None) => pad_right("…", c.width()),
             };
-            spans.push(Span::styled(text, theme.dim));
+            // dired-p2d
+            let style = match (c, meta, cx.ui.column_colors) {
+                (Col::Size, Some(m), true) => widgets::size_style(theme, m.size),
+                (Col::Mtime, Some(m), true) => widgets::age_style(theme, m.modified, cx.now),
+                _ => theme.dim,
+            };
+            spans.push(Span::styled(text, style));
             spans.push(Span::raw(" "));
         }
         let indent = "  ".repeat(r.depth);

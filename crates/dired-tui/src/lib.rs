@@ -4,6 +4,7 @@
 
 pub mod render;
 pub mod theme;
+pub mod widgets;
 
 use std::io::{self, Stdout};
 use std::sync::atomic::{AtomicBool, Ordering};
