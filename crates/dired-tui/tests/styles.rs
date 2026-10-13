@@ -107,3 +107,62 @@ async fn mono_theme_with_segmented_mode_line_does_not_break() {
     let rows = ui.draw();
     assert!(!rows[8].contains('\u{e0b0}'), "{:?}", rows[8]);
 }
+
+#[tokio::test]
+async fn clean_draws_a_rule_under_the_header_and_minimal_does_not() {
+    let fs = files(3);
+    let mut ui = Ui::open(fs.clone(), cfg("version = 1\n"), 60, 10, "/w").await;
+    let rows = ui.draw();
+    assert!(rows[0].contains("/w"), "{}", rows.join("\n"));
+    assert!(rows[1].chars().all(|c| c == '─'), "rule row: {:?}", rows[1]);
+    assert!(rows[2].contains(".."), "{}", rows.join("\n"));
+    let mut ui = Ui::open(fs, cfg("version = 1\n[display]\nstyle = \"minimal\"\n"), 60, 10, "/w").await;
+    let rows = ui.draw();
+    assert!(rows[1].contains(".."), "minimal has no rule:\n{}", rows.join("\n"));
+}
+
+#[tokio::test]
+async fn clean_adds_a_left_gutter_and_wider_column_gaps() {
+    let fs = files(1);
+    let mut clean = Ui::open(fs.clone(), cfg("version = 1\n"), 80, 10, "/w").await;
+    let mut mini = Ui::open(fs, cfg("version = 1\n[display]\nstyle = \"minimal\"\n"), 80, 10, "/w").await;
+    let c = clean.draw();
+    let m = mini.draw();
+    let cr = c.iter().find(|r| r.contains("f00")).unwrap();
+    let mr = m.iter().find(|r| r.contains("f00")).unwrap();
+    // One extra gutter column plus one extra column per metadata column (3).
+    assert_eq!(char_index(cr, "f00"), char_index(mr, "f00") + 1 + 3, "{cr:?} vs {mr:?}");
+}
+
+#[tokio::test]
+async fn last_entry_stays_visible_in_every_style() {
+    for style in ["minimal", "clean"] {
+        let mut ui =
+            Ui::open(files(40), cfg(&format!("version = 1\n[display]\nstyle = \"{style}\"\n")), 60, 12, "/w").await;
+        ui.app.press("M->");
+        let rows = ui.draw();
+        assert!(rows.iter().any(|r| r.contains("f39")), "{style}:\n{}", rows.join("\n"));
+    }
+}
+
+/// With a Wdired edit active the terminal cursor must sit on the character
+/// being edited. `snippets` are config fragments to try.
+async fn wdired_cursor_tracks_name_start(snippets: &[&str]) {
+    for snippet in snippets {
+        let mut ui = Ui::open(files(5), cfg(&format!("version = 1\n{snippet}")), 80, 12, "/w").await;
+        ui.app.press("n n");
+        ui.app.press("C-x C-q");
+        let rows = ui.draw();
+        let col = ui.app.active().dir().unwrap().wdired.as_ref().expect("wdired").col;
+        let pos = ui.term.get_cursor_position().unwrap();
+        let row = &rows[pos.y as usize];
+        let name_start = char_index(row, "f0");
+        // `col` starts as usize::MAX ("end of name"); the renderer clamps it to the name length (3).
+        assert_eq!(pos.x as usize, name_start + col.min(3), "{snippet}\n{}", rows.join("\n"));
+    }
+}
+
+#[tokio::test]
+async fn wdired_cursor_tracks_name_start_minimal_and_clean() {
+    wdired_cursor_tracks_name_start(&["[display]\nstyle = \"minimal\"\n", "[display]\nstyle = \"clean\"\n"]).await;
+}

@@ -326,18 +326,16 @@ fn draw_dir(
     let theme = cx.theme; // dired-p2d
     let cfg_cols = cx.cols;
     let w = area.width as usize;
+    // dired-p2d
+    let hdr_rows = cx.ui.dir_header_rows();
+    let gutter = if cx.ui.roomy { 1 } else { 0 };
+    let gap = if cx.ui.roomy { 2 } else { 1 };
     let mut lines = Vec::with_capacity(area.height as usize);
-    let mut header = format!("  {}:", d.root.display());
-    let scan = d.scan_summary();
-    if scan != "done" {
-        header.push_str(&format!("  [{scan}]"));
-    }
-    lines.push(Line::from(Span::styled(truncate(&header, w), theme.header)));
-    let height = area.height.saturating_sub(1) as usize;
+    let height = area.height.saturating_sub(hdr_rows) as usize;
     let rows: Vec<Row> = d.rows().iter().skip(top).take(height).cloned().collect();
 
     // Drop low-priority metadata before truncating names.
-    let prefix_w = 4;
+    let prefix_w = 4 + gutter; // dired-p2d
     let longest = rows
         .iter()
         .map(|r| d.display_name(r).width() + r.depth * 2 + 2)
@@ -345,7 +343,7 @@ fn draw_dir(
         .unwrap_or(10)
         .min(40);
     let mut cols: Vec<Col> = cfg_cols.to_vec();
-    let used = |cols: &[Col]| prefix_w + cols.iter().map(|c| c.width() + 1).sum::<usize>() + 1;
+    let used = |cols: &[Col]| prefix_w + cols.iter().map(|c| c.width() + gap).sum::<usize>() + 1;
     for drop in [Col::Perms, Col::Mtime, Col::Size] {
         if w >= used(&cols) + longest.max(12) {
             break;
@@ -353,6 +351,8 @@ fn draw_dir(
         cols.retain(|c| *c != drop);
     }
     let name_w = w.saturating_sub(used(&cols));
+    // dired-p2d
+    lines.extend(dir_header_lines(d, cx, w, prefix_w, &cols, gap));
     let mut cursor = None;
 
     for (i, r) in rows.iter().enumerate() {
@@ -381,12 +381,16 @@ fn draw_dir(
             EntryState::DeleteFlagged => theme.flagged,
             EntryState::Unmarked => theme.normal,
         };
-        let mut spans = vec![
+        let mut spans = Vec::new();
+        if gutter > 0 {
+            spans.push(Span::raw(" ".repeat(gutter))); // dired-p2d
+        }
+        spans.extend([
             Span::raw(focus_glyph.to_string()),
             Span::styled(state_glyph.to_string(), state_style),
             Span::styled(extra.to_string(), if annotation.is_some() { theme.error } else { theme.changed }),
             Span::raw(" "),
-        ];
+        ]);
         let meta = e.meta.as_ref();
         for c in &cols {
             let text = match (c, meta) {
@@ -403,7 +407,7 @@ fn draw_dir(
                 _ => theme.dim,
             };
             spans.push(Span::styled(text, style));
-            spans.push(Span::raw(" "));
+            spans.push(Span::raw(" ".repeat(gap))); // dired-p2d
         }
         let indent = "  ".repeat(r.depth);
         let name = d.display_name(r);
@@ -438,7 +442,7 @@ fn draw_dir(
             if let Some(wd) = &d.wdired {
                 let before: String = name.chars().take(wd.col.min(name.chars().count())).collect();
                 let x = spans.iter().map(|s| s.content.width()).sum::<usize>() + indent.width() + before.width();
-                cursor = Some(Position::new(area.x + x.min(w.saturating_sub(1)) as u16, area.y + 1 + i as u16));
+                cursor = Some(Position::new(area.x + x.min(w.saturating_sub(1)) as u16, area.y + hdr_rows + i as u16));
             }
         }
         spans.push(Span::raw(indent));
@@ -459,6 +463,30 @@ fn draw_dir(
     }
     f.render_widget(Paragraph::new(lines), area);
     cursor
+}
+
+// dired-p2d
+/// The directory header: the path (with scan state) and, in `clean`, a rule.
+fn dir_header_lines(
+    d: &DirBuffer,
+    cx: &DrawCx,
+    w: usize,
+    _prefix_w: usize,
+    _cols: &[Col],
+    _gap: usize,
+) -> Vec<Line<'static>> {
+    let theme = cx.theme;
+    let gutter = if cx.ui.roomy { " " } else { "" };
+    let mut header = format!("{gutter}  {}:", d.root.display());
+    let scan = d.scan_summary();
+    if scan != "done" {
+        header.push_str(&format!("  [{scan}]"));
+    }
+    let mut out = vec![Line::from(Span::styled(truncate(&header, w), theme.header))];
+    if cx.ui.header_rule {
+        out.push(Line::from(Span::styled("─".repeat(w), theme.dim)));
+    }
+    out
 }
 
 #[cfg(test)]
