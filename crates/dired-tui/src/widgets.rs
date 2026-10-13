@@ -59,6 +59,22 @@ pub fn draw_scrollbar(f: &mut Frame, area: Rect, total: usize, top: usize, view:
 }
 
 // dired-p2d
+/// The icon for an entry: the `..` row counts as a directory.
+pub fn icon_for(g: &dired_config::Glyphs, special: bool, kind: dired_domain::FileKind, executable: bool) -> &str {
+    use dired_domain::FileKind;
+    if special {
+        return &g.icon_dir;
+    }
+    match kind {
+        FileKind::Dir => &g.icon_dir,
+        FileKind::Symlink => &g.icon_symlink,
+        FileKind::File if executable => &g.icon_exec,
+        FileKind::File => &g.icon_file,
+        _ => &g.icon_special,
+    }
+}
+
+// dired-p2d
 /// First visible candidate so that `selected` is within `view_rows` rows.
 pub fn popup_window(selected: usize, view_rows: usize) -> usize {
     selected.saturating_sub(view_rows.saturating_sub(1))
@@ -299,5 +315,18 @@ mod tests {
             let l = segmented_mode_line(&t, STATUS, Some((1, 2)), None, w, true, true);
             assert_eq!(l.width(), w, "width {w}");
         }
+    }
+
+    #[test]
+    fn icon_choice() {
+        use dired_domain::FileKind;
+        let g = Glyphs::default();
+        assert_eq!(icon_for(&g, true, FileKind::Dir, false), g.icon_dir); // the ".." row
+        assert_eq!(icon_for(&g, false, FileKind::Dir, false), g.icon_dir);
+        assert_eq!(icon_for(&g, false, FileKind::Symlink, false), g.icon_symlink);
+        assert_eq!(icon_for(&g, false, FileKind::File, true), g.icon_exec);
+        assert_eq!(icon_for(&g, false, FileKind::File, false), g.icon_file);
+        assert_eq!(icon_for(&g, false, FileKind::Fifo, false), g.icon_special);
+        assert_eq!(icon_for(&g, false, FileKind::Unknown, false), g.icon_special);
     }
 }

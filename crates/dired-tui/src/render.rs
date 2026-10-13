@@ -466,7 +466,15 @@ fn draw_dir(
                 _ => theme.normal,
             }
         };
-        let name_room = name_w.saturating_sub(indent.width());
+        // dired-p2d
+        let icon = if cx.ui.icons {
+            let exec = meta.map(|m| m.executable()).unwrap_or(false);
+            Some(widgets::icon_for(g, e.special, e.kind, exec).to_string())
+        } else {
+            None
+        };
+        let icon_w = icon.as_ref().map(|i| i.width() + 1).unwrap_or(0);
+        let name_room = name_w.saturating_sub(indent.width() + icon_w);
         let shown = truncate(&format!("{name}{indicator}"), name_room);
         let rest_room = name_room.saturating_sub(shown.width());
         let mut tail = truncate(&target, rest_room);
@@ -479,11 +487,14 @@ fn draw_dir(
         if focused && active {
             if let Some(wd) = &d.wdired {
                 let before: String = name.chars().take(wd.col.min(name.chars().count())).collect();
-                let x = spans.iter().map(|s| s.content.width()).sum::<usize>() + indent.width() + before.width();
+                let x = spans.iter().map(|s| s.content.width()).sum::<usize>() + indent.width() + icon_w + before.width();
                 cursor = Some(Position::new(area.x + x.min(w.saturating_sub(1)) as u16, area.y + hdr_rows + i as u16));
             }
         }
         spans.push(Span::raw(indent));
+        if let Some(i) = icon {
+            spans.push(Span::styled(format!("{i} "), name_style)); // dired-p2d
+        }
         spans.push(Span::styled(shown, name_style));
         spans.push(Span::styled(tail, if annotation.is_some() { theme.error } else { theme.dim }));
         let mut line = Line::from(spans);

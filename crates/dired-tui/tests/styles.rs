@@ -252,3 +252,45 @@ async fn titles_and_popup_are_sanitized() {
 async fn wdired_cursor_tracks_name_start_in_rich() {
     wdired_cursor_tracks_name_start(&["[display]\nstyle = \"rich\"\n"]).await;
 }
+
+#[tokio::test]
+async fn icons_follow_the_override_and_the_glyph_config() {
+    let fs = files(1);
+    fs.mkdir_p("/w/sub");
+    let on = "version = 1\n[display.ui]\nicons = true\n[theme.glyphs]\nicon_dir = \"D\"\nicon_file = \"F\"\n";
+    let mut ui = Ui::open(fs.clone(), cfg(on), 60, 12, "/w").await;
+    let rows = ui.draw();
+    let joined = rows.join("\n");
+    assert!(rows.iter().any(|r| r.contains("D sub")), "{joined}");
+    assert!(rows.iter().any(|r| r.contains("F f00")), "{joined}");
+
+    let mut ui = Ui::open(fs.clone(), cfg("version = 1\n"), 60, 12, "/w").await;
+    let rows = ui.draw();
+    assert!(!rows.iter().any(|r| r.contains("D sub") || r.contains("F f00")), "icons are off in clean");
+
+    // Rich enables icons; Nerd Font defaults appear.
+    let mut ui = Ui::open(fs, cfg(RICH), 60, 12, "/w").await;
+    let rows = ui.draw();
+    assert!(rows.iter().any(|r| r.contains('\u{f07b}')), "{}", rows.join("\n"));
+}
+
+#[tokio::test]
+async fn long_names_still_truncate_with_icons() {
+    let fs = Arc::new(MockFs::new());
+    fs.write(format!("/w/{}", "n".repeat(100)), "");
+    let mut ui = Ui::open(fs, cfg(RICH), 50, 12, "/w").await;
+    let rows = ui.draw();
+    let row = rows.iter().find(|r| r.contains("nnnn")).expect("row");
+    assert!(row.contains('…'), "{row:?}");
+    assert!(row.chars().count() <= 50);
+}
+
+#[tokio::test]
+async fn wdired_cursor_tracks_name_start_with_icons_everywhere() {
+    wdired_cursor_tracks_name_start(&[
+        "[display]\nstyle = \"minimal\"\n[display.ui]\nicons = true\n",
+        "[display]\nstyle = \"clean\"\n[display.ui]\nicons = true\n",
+        "[display]\nstyle = \"rich\"\n",
+    ])
+    .await;
+}
