@@ -67,3 +67,21 @@ async fn scrollbar_thumb_reaches_the_bottom_at_the_end() {
     let col = last_col(&rows, 2, 10); // rows below the 2-row clean header
     assert!(col.ends_with('█'), "thumb should touch the bottom: {col:?}\n{}", rows.join("\n"));
 }
+
+#[tokio::test]
+async fn completion_popup_floats_above_the_minibuffer() {
+    let mut ui = Ui::open(files(3), cfg("version = 1\n"), 60, 14, "/w").await;
+    ui.app.press("M-x");
+    let rows = ui.draw();
+    let joined = rows.join("\n");
+    assert!(rows[13].starts_with("M-x"), "{joined}");
+    assert!(rows[5].starts_with('╭') && rows[12].starts_with('╰'), "{joined}");
+    assert!(rows[6].contains("dired-open-directory"), "first candidate:\n{joined}");
+
+    // popup = false: plain lines, no box.
+    let mut ui = Ui::open(files(3), cfg("version = 1\n[display.ui]\npopup = false\n"), 60, 14, "/w").await;
+    ui.app.press("M-x");
+    let rows = ui.draw();
+    assert!(!rows.join("\n").contains('╭'), "{}", rows.join("\n"));
+    assert!(rows[7].contains("dired-open-directory"), "{}", rows.join("\n"));
+}

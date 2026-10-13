@@ -18,7 +18,7 @@ use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 use crate::theme::Theme;
 use crate::widgets;
 
-const MAX_CANDIDATES: usize = 6;
+pub(crate) const MAX_CANDIDATES: usize = 6;
 
 /// Escape control characters (ESC, BEL, CR, …) so filenames and process
 /// output can never inject terminal sequences.
@@ -105,10 +105,13 @@ pub fn draw(f: &mut Frame, app: &mut App, theme: &Theme) {
         f.render_widget(Paragraph::new(Span::styled("  Loading…", theme.dim)), area);
         return;
     }
-    let cand_lines = app
-        .prompt()
-        .map(|p| p.candidates.len().min(MAX_CANDIDATES) as u16)
-        .unwrap_or(0);
+    // dired-p2d
+    let ui = UiOptions::resolve(&app.config.display);
+    let cand_lines = if ui.popup {
+        0 // the popup floats over the windows
+    } else {
+        app.prompt().map(|p| p.candidates.len().min(MAX_CANDIDATES) as u16).unwrap_or(0)
+    };
     // dired-ta2: windows fill the screen above the minibuffer; each has a
     // mode line, and side-by-side windows are separated by a rule.
     let chunks = Layout::default()
@@ -117,7 +120,6 @@ pub fn draw(f: &mut Frame, app: &mut App, theme: &Theme) {
         .split(area);
     let warea = chunks[0];
     // dired-p2d
-    let ui = UiOptions::resolve(&app.config.display);
     app.set_chrome(ui.border_rows(), ui.dir_header_rows());
     app.set_window_area(warea.width, warea.height);
     app.prepare_frame();
@@ -136,17 +138,22 @@ pub fn draw(f: &mut Frame, app: &mut App, theme: &Theme) {
     // Completion candidates.
     if let Some(p) = app.prompt() {
         if !p.candidates.is_empty() {
-            let lines: Vec<Line> = p
-                .candidates
-                .iter()
-                .take(MAX_CANDIDATES)
-                .enumerate()
-                .map(|(i, c)| {
-                    let st = if i == p.selected { theme.point } else { theme.dim };
-                    Line::from(Span::styled(truncate(c, area.width as usize), st))
-                })
-                .collect();
-            f.render_widget(Paragraph::new(lines), chunks[1]);
+            if ui.popup {
+                // dired-p2d
+                widgets::draw_popup(f, area, chunks[2], &p.candidates, p.selected, MAX_CANDIDATES, theme);
+            } else {
+                let lines: Vec<Line> = p
+                    .candidates
+                    .iter()
+                    .take(MAX_CANDIDATES)
+                    .enumerate()
+                    .map(|(i, c)| {
+                        let st = if i == p.selected { theme.point } else { theme.dim };
+                        Line::from(Span::styled(truncate(c, area.width as usize), st))
+                    })
+                    .collect();
+                f.render_widget(Paragraph::new(lines), chunks[1]);
+            }
         }
     }
 
