@@ -30,3 +30,40 @@ async fn size_column_is_colored_by_magnitude_unless_disabled() {
         assert_eq!(ui.cell_fg(x, y as u16), want, "colored={colored}\n{}", rows.join("\n"));
     }
 }
+
+fn files(n: usize) -> Arc<MockFs> {
+    let fs = Arc::new(MockFs::new());
+    for i in 0..n {
+        fs.write(format!("/w/f{i:02}"), "");
+    }
+    fs
+}
+
+fn last_col(rows: &[String], from: usize, to: usize) -> String {
+    rows[from..to].iter().map(|r| r.chars().last().unwrap()).collect()
+}
+
+#[tokio::test]
+async fn scrollbar_appears_only_when_content_overflows_and_is_enabled() {
+    // 40 files in a 12-row terminal: overflow.
+    let mut ui = Ui::open(files(40), cfg("version = 1\n"), 60, 12, "/w").await;
+    let rows = ui.draw();
+    assert!(last_col(&rows, 1, 10).contains('█'), "thumb expected:\n{}", rows.join("\n"));
+    // Disabled by override.
+    let mut ui = Ui::open(files(40), cfg("version = 1\n[display.ui]\nscrollbar = false\n"), 60, 12, "/w").await;
+    let rows = ui.draw();
+    assert!(!last_col(&rows, 1, 10).contains('█'), "{}", rows.join("\n"));
+    // Everything fits: no scrollbar.
+    let mut ui = Ui::open(files(3), cfg("version = 1\n"), 60, 12, "/w").await;
+    let rows = ui.draw();
+    assert!(!last_col(&rows, 1, 10).contains('█'), "{}", rows.join("\n"));
+}
+
+#[tokio::test]
+async fn scrollbar_thumb_reaches_the_bottom_at_the_end() {
+    let mut ui = Ui::open(files(40), cfg("version = 1\n"), 60, 12, "/w").await;
+    ui.app.press("M->");
+    let rows = ui.draw();
+    let col = last_col(&rows, 2, 10); // rows below the 2-row clean header
+    assert!(col.ends_with('█'), "thumb should touch the bottom: {col:?}\n{}", rows.join("\n"));
+}

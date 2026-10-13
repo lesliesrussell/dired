@@ -3,7 +3,10 @@
 
 use std::time::{Duration, SystemTime};
 
+use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
+use ratatui::widgets::{Scrollbar, ScrollbarOrientation, ScrollbarState};
+use ratatui::Frame;
 
 use crate::theme::Theme;
 
@@ -32,6 +35,24 @@ pub fn age_style(theme: &Theme, modified: Option<SystemTime>, now: SystemTime) -
         a if a < 365 * DAY => theme.dim,
         _ => theme.dim.add_modifier(Modifier::ITALIC),
     }
+}
+
+/// Draw a one-column vertical scrollbar into `area`. `total` rows of content,
+/// `view` of them visible starting at `top`.
+pub fn draw_scrollbar(f: &mut Frame, area: Rect, total: usize, top: usize, view: usize, theme: &Theme) {
+    if area.width == 0 || area.height == 0 || total <= view {
+        return;
+    }
+    // Positions run 0..=total-view so the thumb touches the bottom at the end.
+    let mut state = ScrollbarState::new(total - view + 1).position(top).viewport_content_length(view);
+    let bar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
+        .begin_symbol(None)
+        .end_symbol(None)
+        .track_symbol(Some("│"))
+        .thumb_symbol("█")
+        .style(theme.dim)
+        .thumb_style(theme.normal);
+    f.render_stateful_widget(bar, area, &mut state);
 }
 
 #[cfg(test)]

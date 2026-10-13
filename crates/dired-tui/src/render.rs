@@ -116,51 +116,21 @@ pub fn draw(f: &mut Frame, app: &mut App, theme: &Theme) {
         .constraints([Constraint::Min(1), Constraint::Length(cand_lines), Constraint::Length(1)])
         .split(area);
     let warea = chunks[0];
+    // dired-p2d
+    let ui = UiOptions::resolve(&app.config.display);
+    app.set_chrome(ui.border_rows(), ui.dir_header_rows());
     app.set_window_area(warea.width, warea.height);
     app.prepare_frame();
     let hint = app.key_hint();
-    // dired-p2d
-    let ui = UiOptions::resolve(&app.config.display);
     let cols = columns(&app.config.display.columns);
     let cx = DrawCx { theme, ui: &ui, cols: &cols, now: SystemTime::now() };
     let mut cursor: Option<Position> = None;
 
     for (wid, r, selected) in app.window_rects() {
-        let rect = Rect::new(warea.x + r.x, warea.y + r.y, r.w, r.h);
-        if rect.width == 0 || rect.height == 0 {
-            continue;
+        // dired-p2d
+        if let Some(c) = draw_window(f, app, &cx, wid, r, selected, &hint, warea) {
+            cursor = Some(c);
         }
-        if r.x > 0 {
-            let rule: Vec<Line> = (0..rect.height).map(|_| Line::from(Span::styled("│", theme.dim))).collect();
-            f.render_widget(Paragraph::new(rule), Rect::new(rect.x - 1, rect.y, 1, rect.height));
-        }
-        let body = Rect::new(rect.x, rect.y, rect.width, rect.height.saturating_sub(1));
-        let mode = Rect::new(rect.x, rect.y + rect.height.saturating_sub(1), rect.width, 1);
-        let Some(buf) = app.window(wid).map(|w| w.buffer) else { continue };
-        let view = app.render_view(wid, body.height as usize);
-        let status = app.status_for(buf);
-        match app.buffer_mut(buf).map(|b| &mut b.kind) {
-            Some(BufferKind::Dir(d)) => {
-                let c = draw_dir(f, body, d, &cx, view.point, view.top, selected);
-                if selected {
-                    cursor = c;
-                }
-            }
-            Some(BufferKind::Text(t)) => draw_lines(f, body, &t.lines, view.top, Some(view.point), theme, selected),
-            Some(BufferKind::Preview(p)) => {
-                let (lines, first) = p.lines();
-                draw_lines(f, body, &lines, view.top, Some(first + view.point), theme, selected);
-            }
-            None => {}
-        }
-        // Mode line (the prefix-key hint shows in the selected window's).
-        let w = mode.width as usize;
-        let text = match (&hint, selected) {
-            (Some(h), true) => format!(" {}  │ {}", truncate(&status, w / 2), h),
-            _ => format!(" {status}"),
-        };
-        let style = if selected { theme.status } else { theme.inactive };
-        f.render_widget(Paragraph::new(pad_right(&truncate(&text, w), w)).style(style), mode);
     }
 
     // Completion candidates.
@@ -199,6 +169,92 @@ pub fn draw(f: &mut Frame, app: &mut App, theme: &Theme) {
     if let Some(c) = cursor {
         f.set_cursor_position(c);
     }
+}
+
+// dired-p2d
+/// Draw one window: body, scrollbar and mode line. Returns the cursor
+/// position when this is the selected window and a Wdired edit is active.
+#[allow(clippy::too_many_arguments)]
+fn draw_window(
+    f: &mut Frame,
+    app: &mut App,
+    cx: &DrawCx,
+    wid: dired_app::windows::WindowId,
+    r: dired_app::windows::Rect,
+    selected: bool,
+    hint: &Option<String>,
+    warea: Rect,
+) -> Option<Position> {
+    let theme = cx.theme;
+    let rect = Rect::new(warea.x + r.x, warea.y + r.y, r.w, r.h);
+    if rect.width == 0 || rect.height == 0 {
+        return None;
+    }
+    if r.x > 0 {
+        let rule: Vec<Line> = (0..rect.height).map(|_| Line::from(Span::styled("│", theme.dim))).collect();
+        f.render_widget(Paragraph::new(rule), Rect::new(rect.x - 1, rect.y, 1, rect.height));
+    }
+    let body = Rect::new(rect.x, rect.y, rect.width, rect.height.saturating_sub(1));
+    let mode = Rect::new(rect.x, rect.y + rect.height.saturating_sub(1), rect.width, 1);
+    let buf = app.window(wid).map(|w| w.buffer)?;
+    let view = app.render_view(wid, body.height as usize);
+    let status = app.status_for(buf);
+
+    // Content extent: (total rows, rows visible), reusing the preview lines.
+    let dir_hdr = cx.ui.dir_header_rows();
+    let mut preview: Option<(Vec<TextLine>, usize)> = None;
+    let mut hdr_rows = 0;
+    let (total, shown) = match app.buffer_mut(buf).map(|b| &mut b.kind) {
+        Some(BufferKind::Dir(d)) => {
+            d.ensure_view();
+            hdr_rows = dir_hdr;
+            (d.rows().len(), (body.height as usize).saturating_sub(dir_hdr as usize))
+        }
+        Some(BufferKind::Text(t)) => (t.lines.len(), body.height as usize),
+        Some(BufferKind::Preview(p)) => {
+            let (lines, first) = p.lines();
+            let n = lines.len();
+            preview = Some((lines, first));
+            (n, body.height as usize)
+        }
+        None => (0, 0),
+    };
+    let show_sb = cx.ui.scrollbar && total > shown && body.width > 8 && shown > 0;
+    let (body, sb) = if show_sb {
+        let sb = Rect::new(body.x + body.width - 1, body.y + hdr_rows, 1, body.height.saturating_sub(hdr_rows));
+        (Rect::new(body.x, body.y, body.width - 1, body.height), Some(sb))
+    } else {
+        (body, None)
+    };
+
+    let mut cursor = None;
+    match app.buffer_mut(buf).map(|b| &mut b.kind) {
+        Some(BufferKind::Dir(d)) => {
+            let c = draw_dir(f, body, d, cx, view.point, view.top, selected);
+            if selected {
+                cursor = c;
+            }
+        }
+        Some(BufferKind::Text(t)) => draw_lines(f, body, &t.lines, view.top, Some(view.point), theme, selected),
+        Some(BufferKind::Preview(_)) => {
+            if let Some((lines, first)) = &preview {
+                draw_lines(f, body, lines, view.top, Some(first + view.point), theme, selected);
+            }
+        }
+        None => {}
+    }
+    if let Some(sb) = sb {
+        widgets::draw_scrollbar(f, sb, total, view.top, shown, theme);
+    }
+    // Mode line (the prefix-key hint shows in the selected window's).
+    let w = mode.width as usize;
+    let text = match (hint, selected) {
+        (Some(h), true) => format!(" {}  │ {}", truncate(&status, w / 2), h),
+        _ => format!(" {status}"),
+    };
+    let style = if selected { theme.status } else { theme.inactive };
+    f.render_widget(Paragraph::new(pad_right(&truncate(&text, w), w)).style(style), mode);
+    cursor
 }
 
 fn line_style(s: LineStyle, t: &Theme) -> Style {
