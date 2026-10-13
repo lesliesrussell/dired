@@ -118,7 +118,10 @@ pub fn draw(f: &mut Frame, app: &mut App, theme: &Theme) {
     }
     // dired-p2d
     let ui = UiOptions::resolve(&app.config.display);
-    let cand_lines = if ui.popup {
+    // dired-mv2: a popup needs room for a box above the minibuffer; very short
+    // terminals fall back to inline candidate lines.
+    let use_popup = ui.popup && area.height >= 4;
+    let cand_lines = if use_popup {
         0 // the popup floats over the windows
     } else {
         app.prompt().map(|p| p.candidates.len().min(MAX_CANDIDATES) as u16).unwrap_or(0)
@@ -149,7 +152,7 @@ pub fn draw(f: &mut Frame, app: &mut App, theme: &Theme) {
     // Completion candidates.
     if let Some(p) = app.prompt() {
         if !p.candidates.is_empty() {
-            if ui.popup {
+            if use_popup {
                 // dired-p2d
                 widgets::draw_popup(f, area, chunks[2], &p.candidates, p.selected, MAX_CANDIDATES, theme);
             } else {
@@ -300,7 +303,7 @@ fn draw_window(
         dired_config::ModeLine::Segmented => {
             let pos = if total == 0 || !has_pos { None } else { Some((view.point + 1, total)) };
             let line =
-                widgets::segmented_mode_line(theme, &status, pos, hint.as_deref(), w, selected, cx.ui.icons);
+                widgets::segmented_mode_line(theme, &name, &status, pos, hint.as_deref(), w, selected, cx.ui.icons);
             f.render_widget(Paragraph::new(line), mode);
         }
         dired_config::ModeLine::Plain => {
@@ -529,7 +532,12 @@ fn dir_header_lines(
         // The path is in the border title; the header row labels the columns.
         let mut s = " ".repeat(prefix_w);
         for c in cols {
-            s.push_str(&pad_right(c.label(), c.width()));
+            // dired-mv2: sizes are right-aligned, so their label is too
+            if *c == Col::Size {
+                s.push_str(&format!("{:>w$}", c.label(), w = c.width()));
+            } else {
+                s.push_str(&pad_right(c.label(), c.width()));
+            }
             s.push_str(&" ".repeat(gap));
         }
         s.push_str("Name");

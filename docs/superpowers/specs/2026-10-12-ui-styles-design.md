@@ -170,3 +170,11 @@ passes it down.
   `warning` above; times use `success` (< 1 day), `normal` (< 30 days),
   `dim` (< 1 year) and italic `dim` older. `mono` / `NO_COLOR` render both
   columns plain `dim`. Large files are emphasized, never painted as errors.
+- **Small rendering deviations (intentional).** Unselected windows' borders
+  and titles use the `dim` role rather than `inactive`; the segmented mode
+  line uses only the U+E0B0 powerline separator (no U+E0B2); powerline
+  separators are drawn only when `icons` is on and the theme has two
+  distinct background colors; the popup falls back to inline candidate
+  lines when the terminal is too short for a box (under 4 rows).
+- **Config isolation.** `[display.ui]` is parsed on its own, so a mistake in
+  it is reported without resetting the rest of `[display]`.

@@ -98,7 +98,7 @@ pub fn popup_window(selected: usize, view_rows: usize) -> usize {
 /// bottom edge just above `anchor`. Height 0 when there is no room.
 pub fn popup_rect(screen: Rect, anchor: Rect, candidates: &[String], max_rows: usize) -> Rect {
     let rows = candidates.len().min(max_rows) as u16;
-    let longest = candidates.iter().map(|c| c.width()).max().unwrap_or(0);
+    let longest = candidates.iter().map(|c| crate::render::sanitize(c).width()).max().unwrap_or(0); // dired-mv2
     let w = (longest.min(u16::MAX as usize) as u16).saturating_add(4).min(screen.width);
     let room = anchor.y.saturating_sub(screen.y);
     let h = (rows + 2).min(room);
@@ -152,12 +152,14 @@ fn pad_to(s: &str, width: usize) -> String {
     }
 }
 
-/// Two-tone mode line built from the status text: the buffer name on the
+/// Two-tone mode line built from the status text: the buffer `name` on the
 /// left, then the remaining segments (status split on double spaces),
 /// `n/total`, and the prefix-key hint. Always exactly `width` columns wide.
 /// `powerline` additionally needs two distinct backgrounds in the theme.
+#[allow(clippy::too_many_arguments)]
 pub fn segmented_mode_line(
     theme: &Theme,
+    name: &str,
     status: &str,
     pos: Option<(usize, usize)>,
     hint: Option<&str>,
@@ -165,9 +167,16 @@ pub fn segmented_mode_line(
     selected: bool,
     powerline: bool,
 ) -> Line<'static> {
-    let mut segs = status.split("  ").filter(|s| !s.is_empty());
-    let name = segs.next().unwrap_or("").to_string();
-    let mut rest: Vec<String> = segs.map(str::to_string).collect();
+    // dired-mv2: the buffer name is passed in, so a name containing a double
+    // space is not split; fall back to the first segment if it is not a prefix.
+    let (name, tail_src) = match status.strip_prefix(name) {
+        Some(r) if !name.is_empty() && (r.is_empty() || r.starts_with("  ")) => (name.to_string(), r),
+        _ => {
+            let mut it = status.splitn(2, "  ");
+            (it.next().unwrap_or("").to_string(), it.next().unwrap_or(""))
+        }
+    };
+    let mut rest: Vec<String> = tail_src.split("  ").filter(|s| !s.is_empty()).map(str::to_string).collect();
     if let Some((n, t)) = pos {
         // First, so the position survives truncation on narrow windows.
         rest.insert(0, format!("{n}/{t}"));
@@ -288,10 +297,10 @@ mod tests {
     fn mode_line_has_exact_width_and_all_segments() {
         let t = nord();
         for w in [20usize, 40, 80, 120] {
-            let l = segmented_mode_line(&t, STATUS, Some((3, 12)), Some("C-x- 4:other"), w, true, false);
+            let l = segmented_mode_line(&t, "docs", STATUS, Some((3, 12)), Some("C-x- 4:other"), w, true, false);
             assert_eq!(l.width(), w, "width {w}: {:?}", text(&l));
         }
-        let s = text(&segmented_mode_line(&t, STATUS, Some((3, 12)), Some("C-x- 4:other"), 120, true, false));
+        let s = text(&segmented_mode_line(&t, "docs", STATUS, Some((3, 12)), Some("C-x- 4:other"), 120, true, false));
         for part in ["docs", "marked:1 flagged:0", "[done]", "sort:name", "3/12", "C-x- 4:other"] {
             assert!(s.contains(part), "{part} in {s:?}");
         }
@@ -300,7 +309,7 @@ mod tests {
     #[test]
     fn hint_shows_only_in_the_selected_window() {
         let t = nord();
-        let s = text(&segmented_mode_line(&t, STATUS, None, Some("C-x- 4:other"), 120, false, false));
+        let s = text(&segmented_mode_line(&t, "docs", STATUS, None, Some("C-x- 4:other"), 120, false, false));
         assert!(!s.contains("C-x-"), "{s:?}");
     }
 
@@ -308,14 +317,14 @@ mod tests {
     fn powerline_needs_two_backgrounds() {
         let sep = "\u{e0b0}";
         let nord = nord();
-        assert!(text(&segmented_mode_line(&nord, STATUS, None, None, 80, true, true)).contains(sep));
+        assert!(text(&segmented_mode_line(&nord, "docs", STATUS, None, None, 80, true, true)).contains(sep));
         // No powerline when asked not to, or in an unselected window.
-        assert!(!text(&segmented_mode_line(&nord, STATUS, None, None, 80, true, false)).contains(sep));
-        assert!(!text(&segmented_mode_line(&nord, STATUS, None, None, 80, false, true)).contains(sep));
+        assert!(!text(&segmented_mode_line(&nord, "docs", STATUS, None, None, 80, true, false)).contains(sep));
+        assert!(!text(&segmented_mode_line(&nord, "docs", STATUS, None, None, 80, false, true)).contains(sep));
         // Themes without backgrounds (default, mono) fall back to plain separators.
         for name in ["default", "mono"] {
             let t = Theme::builtin(name, Glyphs::default());
-            let l = segmented_mode_line(&t, STATUS, None, None, 80, true, true);
+            let l = segmented_mode_line(&t, "docs", STATUS, None, None, 80, true, true);
             assert!(!text(&l).contains(sep), "{name}");
             assert_eq!(l.width(), 80, "{name}");
         }
@@ -325,7 +334,7 @@ mod tests {
     fn narrow_widths_truncate_instead_of_overflowing() {
         let t = nord();
         for w in [0usize, 1, 3, 8] {
-            let l = segmented_mode_line(&t, STATUS, Some((1, 2)), None, w, true, true);
+            let l = segmented_mode_line(&t, "docs", STATUS, Some((1, 2)), None, w, true, true);
             assert_eq!(l.width(), w, "width {w}");
         }
     }
@@ -359,5 +368,28 @@ mod tests {
         let huge = size_style(&t, 5 * 1024 * 1024 * 1024);
         assert_ne!(huge, t.error);
         assert_eq!(huge, t.warning.add_modifier(Modifier::BOLD));
+    }
+
+    // dired-mv2
+    #[test]
+    fn popup_width_is_measured_on_the_sanitized_text() {
+        let screen = Rect::new(0, 0, 40, 20);
+        let anchor = Rect::new(0, 19, 40, 1);
+        // "a<ESC>b" is drawn as `a\x1bb` (6 columns), not 3.
+        let c: Vec<String> = vec!["a\u{1b}b".into()];
+        assert_eq!(popup_rect(screen, anchor, &c, 6).width, 6 + 4);
+    }
+
+    #[test]
+    fn names_with_double_spaces_stay_one_segment() {
+        let t = nord();
+        let status = "a  b  marked:0 flagged:0  [done]  filter:-  sort:name";
+        let l = segmented_mode_line(&t, "a  b", status, None, None, 80, true, false);
+        let s = text(&l);
+        assert!(s.starts_with(" a  b "), "{s:?}");
+        assert!(s.contains("marked:0 flagged:0") && !s.contains("│ b "), "{s:?}");
+        // A status that does not start with the name falls back to the first segment.
+        let l = segmented_mode_line(&t, "zzz", status, None, None, 80, true, false);
+        assert!(text(&l).starts_with(" a "), "{:?}", text(&l));
     }
 }

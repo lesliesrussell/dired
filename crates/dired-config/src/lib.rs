@@ -439,7 +439,20 @@ impl Config {
             })
             .collect();
         // dired-p2d
-        let mut display: DisplayConfig = section(&table, "display", source, &mut diags);
+        // dired-mv2: `[display.ui]` is read on its own, so a mistake in it cannot
+        // reset the rest of `[display]`.
+        let mut display_table = table.clone();
+        let mut ui_value = None;
+        if let Some(toml::Value::Table(d)) = display_table.get_mut("display") {
+            ui_value = d.remove("ui");
+        }
+        let mut display: DisplayConfig = section(&display_table, "display", source, &mut diags);
+        if let Some(v) = ui_value {
+            display.ui = UiOverrides::deserialize(v).unwrap_or_else(|e| {
+                diags.push(Diagnostic::error(source, format!("[display.ui]: {}", e.message())));
+                UiOverrides::default()
+            });
+        }
         validate_display(&mut display, source, &mut diags);
         let theme: ThemeConfig = section(&table, "theme", source, &mut diags);
         validate_theme(&theme, source, &mut diags);
@@ -605,5 +618,19 @@ key = "C-c p"
         let (c, d) = Config::parse(text, "examples/config.toml");
         assert!(d.is_empty(), "{d:?}");
         assert_eq!(c.display.style, "clean");
+    }
+
+    // dired-mv2
+    #[test]
+    fn bad_display_ui_does_not_reset_the_rest_of_display() {
+        for bad in ["bordrs = true", "borders = \"yes\""] {
+            let text = format!("version = 1\n[display]\nshow_hidden = false\nsort = \"size\"\nstyle = \"rich\"\n[display.ui]\n{bad}\n");
+            let (c, d) = Config::parse(&text, "t");
+            assert_eq!(d.len(), 1, "{bad}: {d:?}");
+            assert!(!c.display.show_hidden, "{bad}");
+            assert_eq!(c.display.sort, "size", "{bad}");
+            assert_eq!(c.display.style, "rich", "{bad}");
+            assert!(c.display.ui.is_empty(), "{bad}");
+        }
     }
 }

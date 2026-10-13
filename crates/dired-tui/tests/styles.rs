@@ -294,3 +294,42 @@ async fn wdired_cursor_tracks_name_start_with_icons_everywhere() {
     ])
     .await;
 }
+
+// dired-mv2
+#[tokio::test]
+async fn rich_size_label_is_right_aligned_over_the_numbers() {
+    let mut ui = Ui::open(files(3), cfg(RICH), 80, 12, "/w").await;
+    let rows = ui.draw();
+    let head = &rows[1];
+    let entry = rows.iter().find(|r| r.contains("f00")).unwrap();
+    // Values are right-aligned in a 6-wide column followed by one gap column.
+    assert_eq!(char_index(head, "Modified"), char_index(entry, "2023-"), "{}", rows.join("\n"));
+    assert_eq!(char_index(head, "Size") + 4 + 1, char_index(head, "Modified"), "{head:?}");
+}
+
+// dired-mv2
+#[tokio::test]
+async fn completion_falls_back_to_inline_lines_when_a_popup_cannot_fit() {
+    let mut ui = Ui::open(files(3), cfg("version = 1\n"), 40, 3, "/w").await;
+    ui.app.press("M-x");
+    let rows = ui.draw();
+    assert!(rows.iter().any(|r| r.contains("dired")), "some candidate must be visible:\n{}", rows.join("\n"));
+}
+
+// dired-mv2
+/// Review minor #8: with icons, a name must not be truncated while metadata
+/// columns are still shown (the heuristic's 2-column slack covers the icon).
+#[tokio::test]
+async fn names_are_not_truncated_while_all_columns_are_shown() {
+    let fs = Arc::new(MockFs::new());
+    let name = "n".repeat(30);
+    fs.write(format!("/w/{name}"), "");
+    for width in 60u16..=100 {
+        let mut ui = Ui::open(fs.clone(), cfg(RICH), width, 12, "/w").await;
+        let rows = ui.draw();
+        let row = rows.iter().find(|r| r.contains("nnnn")).expect("row");
+        if row.contains("Modified") || rows[1].contains("Modified") {
+            assert!(row.contains(&name), "width {width}: truncated while columns shown: {row:?}");
+        }
+    }
+}
