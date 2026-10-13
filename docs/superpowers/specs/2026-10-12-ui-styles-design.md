@@ -165,3 +165,8 @@ passes it down.
   side-by-side windows is not drawn (the boxes separate themselves).
 - **Segments.** The segmented mode line splits the existing status text on
   double spaces and appends `n/total` and the prefix-key hint.
+- **Column colors reuse existing roles.** No new `Theme` roles were added.
+  Sizes use `dim` (< 1 KiB), `normal` (< 1 MiB), `warning` (< 1 GiB) and bold
+  `warning` above; times use `success` (< 1 day), `normal` (< 30 days),
+  `dim` (< 1 year) and italic `dim` older. `mono` / `NO_COLOR` render both
+  columns plain `dim`. Large files are emphasized, never painted as errors.

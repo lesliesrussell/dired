@@ -59,3 +59,22 @@ async fn chrome_rows_shrink_the_scroll_window() {
     };
     assert!(point >= top && point < top + 7, "top {top} point {point}");
 }
+
+#[tokio::test]
+async fn paging_keeps_one_line_of_overlap_whatever_the_header_height() {
+    for (hdr, expect) in [(1u16, 9usize), (2, 8)] {
+        let (fs, mut h) = mock();
+        for i in 0..60 {
+            fs.write(format!("/w/f{i:02}"), "");
+        }
+        h.app.open_dir("/w");
+        h.settle().await;
+        h.app.set_chrome(0, hdr);
+        h.app.set_window_area(80, 12); // viewport 11: 11 - hdr visible rows
+        h.app.prepare_frame();
+        let before = h.dir().point;
+        h.press("C-v");
+        let after = h.dir().point;
+        assert_eq!(after - before, expect, "header rows {hdr}: one line must stay visible");
+    }
+}

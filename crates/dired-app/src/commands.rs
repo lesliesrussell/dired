@@ -54,8 +54,8 @@ impl App {
                 let n = self.buffer_len();
                 self.set_point(n.saturating_sub(1))
             }
-            "scroll-up-command" => self.move_lines(self.viewport.saturating_sub(2).max(1) as i64),
-            "scroll-down-command" => self.move_lines(-(self.viewport.saturating_sub(2).max(1) as i64)),
+            "scroll-up-command" => self.move_lines(self.page_lines() as i64),
+            "scroll-down-command" => self.move_lines(-(self.page_lines() as i64)),
             "isearch-forward" | "isearch-backward" => {
                 let forward = def.name == "isearch-forward";
                 let origin = self.point();
@@ -575,6 +575,14 @@ impl App {
     }
 
     // ----- visiting -----
+
+    // dired-p2d
+    /// Lines a page command moves: the visible rows minus one, so a line
+    /// stays in view. Directory buffers lose their header rows from the view.
+    fn page_lines(&self) -> usize {
+        let hdr = if matches!(self.active().kind, BufferKind::Dir(_)) { self.dir_header_rows } else { 1 };
+        self.viewport.saturating_sub(hdr + 1).max(1)
+    }
 
     fn visit_at_point(&mut self) {
         let d = self.dir().unwrap();

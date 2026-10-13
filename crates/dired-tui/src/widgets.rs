@@ -13,17 +13,27 @@ use unicode_width::UnicodeWidthStr;
 use crate::render::truncate;
 use crate::theme::Theme;
 
-/// Size color by magnitude: < 1 KiB dim, < 1 MiB normal, < 1 GiB warning, larger error.
+/// Size color by magnitude: < 1 KiB dim, < 1 MiB normal, < 1 GiB warning,
+/// larger warning-bold. Always dim in `mono` / `NO_COLOR`.
 pub fn size_style(theme: &Theme, size: u64) -> Style {
     const KIB: u64 = 1024;
     const MIB: u64 = KIB * 1024;
     const GIB: u64 = MIB * 1024;
+    if is_mono(theme) {
+        return theme.dim; // no color to vary: do not turn sizes bold
+    }
     match size {
         s if s < KIB => theme.dim,
         s if s < MIB => theme.normal,
         s if s < GIB => theme.warning,
-        _ => theme.error,
+        _ => theme.warning.add_modifier(Modifier::BOLD), // emphasized, but not an error
     }
+}
+
+/// `mono` (also selected by `NO_COLOR`) varies nothing by color, so the
+/// magnitude and age columns stay plain.
+fn is_mono(theme: &Theme) -> bool {
+    theme.name == "mono"
 }
 
 /// Modification-time color by age: < 1 day success, < 30 days normal,
@@ -31,6 +41,9 @@ pub fn size_style(theme: &Theme, size: u64) -> Style {
 pub fn age_style(theme: &Theme, modified: Option<SystemTime>, now: SystemTime) -> Style {
     const DAY: u64 = 86_400;
     let Some(t) = modified else { return theme.dim };
+    if is_mono(theme) {
+        return theme.dim;
+    }
     let age = now.duration_since(t).unwrap_or(Duration::ZERO).as_secs();
     match age {
         a if a < DAY => theme.success,
@@ -225,7 +238,7 @@ mod tests {
         assert_eq!(size_style(&t, 1024), t.normal);
         assert_eq!(size_style(&t, 1024 * 1024 - 1), t.normal);
         assert_eq!(size_style(&t, 1024 * 1024), t.warning);
-        assert_eq!(size_style(&t, 1024 * 1024 * 1024), t.error);
+        assert_eq!(size_style(&t, 1024 * 1024 * 1024), t.warning.add_modifier(Modifier::BOLD));
     }
 
     #[test]
@@ -328,5 +341,23 @@ mod tests {
         assert_eq!(icon_for(&g, false, FileKind::File, false), g.icon_file);
         assert_eq!(icon_for(&g, false, FileKind::Fifo, false), g.icon_special);
         assert_eq!(icon_for(&g, false, FileKind::Unknown, false), g.icon_special);
+    }
+
+    #[test]
+    fn mono_and_no_color_degrade_column_colors_to_dim() {
+        let mono = Theme::builtin("mono", Glyphs::default());
+        let now = SystemTime::UNIX_EPOCH + Duration::from_secs(400 * 86_400);
+        for size in [0u64, 5_000, 5_000_000, 5_000_000_000] {
+            assert_eq!(size_style(&mono, size), mono.dim, "size {size}");
+        }
+        assert_eq!(age_style(&mono, Some(now), now), mono.dim);
+    }
+
+    #[test]
+    fn huge_files_are_emphasized_but_not_painted_as_errors() {
+        let t = nord();
+        let huge = size_style(&t, 5 * 1024 * 1024 * 1024);
+        assert_ne!(huge, t.error);
+        assert_eq!(huge, t.warning.add_modifier(Modifier::BOLD));
     }
 }

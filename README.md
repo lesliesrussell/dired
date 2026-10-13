@@ -822,7 +822,7 @@ style = "clean"
 borders       = true        # frames in any style
 icons         = false       # icons need a Nerd Font; set the characters under [theme.glyphs]
 scrollbar     = true
-column_colors = true        # sizes: grey under 1K, plain under 1M, yellow under 1G, red above; times: green today, plain this month, grey older
+column_colors = true        # sizes: grey under 1K, plain under 1M, yellow under 1G, bold yellow above; times: green within a day, plain within a month, grey older (italic past a year); plain in mono / NO_COLOR
 mode_line     = "segmented" # or "plain"
 popup         = true        # completion candidates in a floating box
 ```
