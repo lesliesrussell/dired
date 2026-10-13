@@ -119,6 +119,9 @@ const DEFAULTS: &[(Mode, &str, &str)] = &[
     (Mode::Dired, "e", "dired-visit"),
     // dired-0cz
     (Mode::Dired, "O", "dired-open-with"),
+    // dired-vhh
+    (Mode::Dired, "w", "dired-copy-name"),
+    (Mode::Dired, "W", "dired-copy-path"),
     (Mode::Dired, "^", "dired-up-directory"),
     (Mode::Dired, "g", "revert-buffer"),
     (Mode::Dired, "n", "next-line"),

@@ -176,4 +176,7 @@ pub struct Services {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Effect {
     Foreground(ProcessSpec),
+    // dired-vhh
+    /// Put this text on the system clipboard.
+    Clipboard(String),
 }

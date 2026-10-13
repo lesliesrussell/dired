@@ -66,6 +66,9 @@ impl App {
             "dired-visit" => self.visit_at_point(),
             // dired-0cz
             "dired-open-with" => self.open_with_at_point(),
+            // dired-vhh
+            "dired-copy-name" => self.copy_operands(false),
+            "dired-copy-path" => self.copy_operands(true),
             "dired-up-directory" => self.up_directory(),
             "revert-buffer" => {
                 let id = self.active;
@@ -654,6 +657,34 @@ impl App {
             }
         }
         out
+    }
+
+    // dired-vhh
+    /// Copy the names (or full paths) of the marked entries, else the entry at
+    /// point, one per line.
+    fn copy_operands(&mut self, full_path: bool) {
+        let d = self.dir().unwrap();
+        let paths: Vec<PathBuf> = d.operands().into_iter().map(|e| d.abs(&e.key)).collect();
+        if paths.is_empty() {
+            return self.error("No file on this line");
+        }
+        let items: Vec<String> = paths
+            .iter()
+            .map(|p| {
+                if full_path {
+                    p.to_string_lossy().into_owned()
+                } else {
+                    p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()
+                }
+            })
+            .collect();
+        let msg = if items.len() == 1 {
+            format!("Copied {}", items[0])
+        } else {
+            format!("Copied {} {}", items.len(), if full_path { "paths" } else { "names" })
+        };
+        self.effects.push(Effect::Clipboard(items.join("\n")));
+        self.message(msg);
     }
 
     // dired-0cz

@@ -480,6 +480,10 @@ To replace *every* space, use Wdired instead, or run `% r` again until nothing m
 |---|---|
 | `+` | Create a directory. Type a name, relative to here or absolute. No preview (it's harmless), and `C-x u` removes it again |
 | `M` | Change permissions of the marked files. Type an octal mode such as `644` (rw-r--r--), `755` (rwxr-xr-x), or `600` (rw-------). A preview shows each file first |
+| `w` | Copy the **names** of the marked files (else the file at point) to the clipboard, one per line |
+| `W` | Copy the **full paths** the same way |
+
+Copying uses the terminal's clipboard escape code (OSC 52), which works over ssh and in iTerm2, kitty, WezTerm, Alacritty, foot, and tmux with `set-clipboard on`. Outside an ssh session dired also hands the text to `pbcopy`, `wl-copy`, `xclip`, or `xsel` when one is installed, which covers macOS Terminal.app.
 
 ## 12. Running programs on files (`!` and `&`)
 
@@ -712,6 +716,7 @@ Undo is best-effort. If files changed in the meantime, some steps may fail, and 
 |---|---|---|
 | `RET` `f` `e` | `dired-visit` | Open directory / visit file |
 | `O` | `dired-open-with` | Choose a program to open the entry at point |
+| `w` / `W` | `dired-copy-name` / `dired-copy-path` | Copy names / full paths of the marked entries (else point) to the clipboard |
 | `^` | `dired-up-directory` | Parent directory |
 | `o` | `dired-find-file-other-window` | Open in the other window |
 | `g` | `revert-buffer` | Reload, keeping point and marks |

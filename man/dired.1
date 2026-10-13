@@ -299,6 +299,20 @@ Move or rename the operands
 Change the mode of the operands to an octal value such as
 .Li 644
 .Pq Ic dired\-do\-chmod .
+.It Cm w , Cm W
+Copy the file names
+.Pq Ic dired\-copy\-name
+or full paths
+.Pq Ic dired\-copy\-path
+of the operands to the clipboard, one per line.
+The terminal's OSC 52 escape is always sent; outside an ssh session the text
+is also given to
+.Xr pbcopy 1 ,
+.Xr wl\-copy 1 ,
+.Xr xclip 1
+or
+.Xr xsel 1
+when one is installed.
 .It Cm +
 Create a directory
 .Pq Ic dired\-create\-directory .

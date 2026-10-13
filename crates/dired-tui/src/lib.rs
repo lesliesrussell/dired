@@ -2,6 +2,7 @@
 //! Terminal frontend: crossterm input, ratatui rendering, and the event
 //! loop that interleaves keys with background task events.
 
+pub mod clipboard;
 pub mod render;
 pub mod theme;
 pub mod widgets;
@@ -186,6 +187,13 @@ pub async fn run(mut app: App) -> io::Result<()> {
                 Effect::Foreground(spec) => {
                     if let Some(err) = run_foreground(&mut terminal, &paused, spec)? {
                         app.error(err);
+                    }
+                    dirty = true;
+                }
+                // dired-vhh
+                Effect::Clipboard(text) => {
+                    if let Err(e) = clipboard::copy(&text) {
+                        app.error(format!("cannot copy to the clipboard: {e}"));
                     }
                     dirty = true;
                 }

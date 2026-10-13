@@ -33,6 +33,8 @@ cmds! {
     "dired-goto-file" [] "Prompt for a name substring and move to the next match.";
     "dired-visit" ["dired-find-file-at-point", "dired-view-file"] "Visit the entry at point: open directories, run the opener on files.";
     "dired-open-with" [] "Choose a program (configured [[open_with]] or built-in) to open the entry at point.";
+    "dired-copy-name" [] "Copy the file names of the marked entries (else the entry at point) to the clipboard.";
+    "dired-copy-path" [] "Copy the full paths of the marked entries (else the entry at point) to the clipboard.";
     "dired-up-directory" [] "Open or focus the parent directory.";
     "revert-buffer" ["dired-revert"] "Reload the listing asynchronously, preserving point.";
     "dired-mark" [] "Mark the entry at point and advance.";
