@@ -18,7 +18,7 @@ use tokio::sync::mpsc::UnboundedReceiver;
 pub struct MockOpener {
     pub opened: Mutex<Vec<OpenRequest>>,
     // dired-0cz
-    pub opened_with: Mutex<Vec<(String, OpenRequest)>>,
+    pub opened_with: Mutex<Vec<(String, Vec<std::path::PathBuf>)>>,
 }
 
 impl Opener for MockOpener {
@@ -27,9 +27,9 @@ impl Opener for MockOpener {
         Ok(OpenOutcome::Detached("mock".into()))
     }
     // dired-0cz
-    fn open_with(&self, entry: &OpenWithEntry, req: &OpenRequest) -> Result<OpenOutcome, String> {
-        self.opened_with.lock().unwrap().push((entry.name.clone(), req.clone()));
-        Ok(OpenOutcome::Detached(entry.name.clone()))
+    fn open_with(&self, entry: &OpenWithEntry, paths: &[std::path::PathBuf]) -> Vec<Result<OpenOutcome, String>> {
+        self.opened_with.lock().unwrap().push((entry.name.clone(), paths.to_vec()));
+        vec![Ok(OpenOutcome::Detached(entry.name.clone()))]
     }
 }
 

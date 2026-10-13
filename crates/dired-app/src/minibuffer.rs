@@ -63,7 +63,7 @@ pub enum PromptAction {
     ConflictRename { buf: BufferId, item: usize },
     Isearch { forward: bool, origin: usize },
     // dired-0cz
-    OpenWith { path: PathBuf },
+    OpenWith { paths: Vec<PathBuf> },
     // dired-2hn
     LoadTheme,
     // dired-5xb

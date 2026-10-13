@@ -53,7 +53,7 @@ async fn offers_matching_candidates_and_opens_the_choice() {
     let got = h.opener.opened_with.lock().unwrap().clone();
     assert_eq!(got.len(), 1);
     assert_eq!(got[0].0, "Preview");
-    assert_eq!(got[0].1.path, PathBuf::from("/w/pic.png"));
+    assert_eq!(got[0].1, [PathBuf::from("/w/pic.png")]);
     assert!(h.opener.opened.lock().unwrap().is_empty());
 }
 
@@ -112,5 +112,87 @@ async fn directories_are_openable_with_unfiltered_candidates() {
     h.press("O");
     h.answer("System default");
     let got = h.opener.opened_with.lock().unwrap().clone();
-    assert_eq!(got[0].1.path, PathBuf::from("/w/sub"));
+    assert_eq!(got[0].1, [PathBuf::from("/w/sub")]);
+}
+
+// dired-vmx
+fn multi_config() -> Config {
+    let (c, d) = Config::parse(
+        r#"
+version = 1
+[[open_with]]
+name = "Preview"
+command = ["open", "-a", "Preview", "{file}"]
+extensions = ["png"]
+[[open_with]]
+name = "Viewer"
+command = ["viewer", "{files}"]
+"#,
+        "t",
+    );
+    assert!(d.is_empty(), "{d:?}");
+    c
+}
+
+fn multi_fixture() -> H {
+    let fs = Arc::new(MockFs::new());
+    for n in ["a.png", "b.png", "c.txt"] {
+        fs.write(format!("/w/{n}"), "");
+    }
+    let trash = Arc::new(MockTrash::with_fs(fs.clone()));
+    harness_with(fs, trash, multi_config(), vec![])
+}
+
+#[tokio::test]
+async fn marked_files_are_opened_together_and_win_over_point() {
+    let mut h = multi_fixture();
+    h.app.open_dir("/w");
+    h.settle().await;
+    for n in ["a.png", "b.png"] {
+        h.goto(n);
+        h.press("m");
+    }
+    h.goto("c.txt"); // point is on an unmarked file
+    h.press("O");
+    assert_eq!(h.app.prompt().unwrap().label, "Open 2 files with: ");
+    h.answer("Preview");
+    let got = h.opener.opened_with.lock().unwrap().clone();
+    assert_eq!(got.len(), 1);
+    assert_eq!(got[0].0, "Preview");
+    assert_eq!(got[0].1, [PathBuf::from("/w/a.png"), PathBuf::from("/w/b.png")]);
+    assert_eq!(h.echo(), "Opened 2 files with Preview");
+}
+
+#[tokio::test]
+async fn a_candidate_must_accept_every_selected_extension() {
+    let mut h = multi_fixture();
+    h.app.open_dir("/w");
+    h.settle().await;
+    for n in ["a.png", "c.txt"] {
+        h.goto(n);
+        h.press("m");
+    }
+    h.press("O");
+    let c = h.app.prompt().unwrap().candidates.clone();
+    assert!(!c.contains(&"Preview".to_string()), "png-only candidate hidden for a mixed selection: {c:?}");
+    assert!(c.contains(&"Viewer".to_string()) && c.contains(&"System default".to_string()), "{c:?}");
+    // With only pngs selected it is offered again.
+    h.press("C-g");
+    h.goto("c.txt");
+    h.press("u"); // unmark c.txt
+    h.press("O");
+    assert!(h.app.prompt().unwrap().candidates.contains(&"Preview".to_string()));
+}
+
+#[tokio::test]
+async fn nothing_marked_still_means_the_file_at_point() {
+    let mut h = multi_fixture();
+    h.app.open_dir("/w");
+    h.settle().await;
+    h.goto("c.txt");
+    h.press("O");
+    assert_eq!(h.app.prompt().unwrap().label, "Open c.txt with: ");
+    h.answer("Viewer");
+    let got = h.opener.opened_with.lock().unwrap().clone();
+    assert_eq!(got[0].1, [PathBuf::from("/w/c.txt")]);
 }

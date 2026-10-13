@@ -161,7 +161,7 @@ Search ignores case unless you type an uppercase letter ("smart case"). If nothi
 |---|---|
 | `RET` `f` `e` | Visit the entry at point |
 | `^` | Go to the parent directory (point lands on the directory you came from) |
-| `O` | **Open with…**: pick a program for the entry at point (see below) |
+| `O` | **Open with…**: pick a program for the marked files, else the file at point (see below) |
 | `o` | Open the directory at point in the **other window** (section 17); files open as with `RET` |
 | `C-x d` | Ask for a directory path and open it |
 | `C-x C-f` | Ask for any path: directories open in dired, files are visited |
@@ -175,7 +175,7 @@ Search ignores case unless you type an uppercase letter ("smart case"). If nothi
 2. Otherwise `$VISUAL` or `$EDITOR`, run inside the terminal. dired steps aside while the editor runs and comes back when you quit it.
 3. Otherwise the system opener: `open` on macOS, `xdg-open` on Linux.
 
-**Open with (`O`)** asks which program to use on the entry at point (marks are ignored), instead of the automatic choice above. The prompt completes over a list of candidates: type a few letters (`neo` finds `Neovim`), `TAB` or `RET` takes the best match. Candidates are your `[[open_with]]` entries, followed by two built-ins: **System default** (`open` / `xdg-open`) and **$EDITOR** (when `$VISUAL` or `$EDITOR` is set). Add your own in the config file:
+**Open with (`O`)** asks which program to use on the marked files (or the file at point when nothing is marked), instead of the automatic choice above. The prompt completes over a list of candidates: type a few letters (`neo` finds `Neovim`), `TAB` or `RET` takes the best match. Candidates are your `[[open_with]]` entries, followed by two built-ins: **System default** (`open` / `xdg-open`) and **$EDITOR** (when `$VISUAL` or `$EDITOR` is set). Add your own in the config file:
 
 ```toml
 [[open_with]]
@@ -189,7 +189,9 @@ command  = ["nvim", "{file}"]
 terminal = true                              # suspend dired while it runs
 ```
 
-A candidate with `extensions` is only offered for files with one of those extensions (case-insensitive). Arguments are passed as argv, never through a shell. Rebind the key with `command = "dired-open-with"` in a `[[keymap]]` entry.
+A candidate with `extensions` is only offered when **every** selected file has one of those extensions (case-insensitive).
+
+With several files selected, `{files}` in a command expands to all of them and the program runs **once** (`["nvim", "-p", "{files}"]`); a command that only has `{file}` runs **once per file**, one after another for terminal programs. The built-in **$EDITOR** uses `{files}`; **System default** runs once per file. Arguments are passed as argv, never through a shell. Rebind the key with `command = "dired-open-with"` in a `[[keymap]]` entry.
 
 **`g` (refresh)** re-reads the directory in the background. Point stays on the same *file*, even if new files now appear above it. Marks and flags on files that still exist are kept.
 
@@ -715,7 +717,7 @@ Undo is best-effort. If files changed in the meantime, some steps may fail, and 
 | Keys | Command | What it does |
 |---|---|---|
 | `RET` `f` `e` | `dired-visit` | Open directory / visit file |
-| `O` | `dired-open-with` | Choose a program to open the entry at point |
+| `O` | `dired-open-with` | Choose a program to open the marked files (else the file at point) |
 | `w` / `W` | `dired-copy-name` / `dired-copy-path` | Copy names / full paths of the marked entries (else point) to the clipboard |
 | `^` | `dired-up-directory` | Parent directory |
 | `o` | `dired-find-file-other-window` | Open in the other window |

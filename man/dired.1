@@ -210,7 +210,8 @@ directory is selected.
 Files are passed to an opener; see
 .Sx OPENERS .
 .It Cm O
-Choose a program to open the entry at point with
+Choose a program to open the operands (the marked entries, else the entry
+at point) with
 .Pq Ic dired\-open\-with .
 The candidates are the configured
 .Cm [[open_with]]
@@ -862,7 +863,7 @@ elsewhere.
 While a program runs in the terminal the interface is suspended.
 .Pp
 .Cm O
-instead asks which program to use for the entry at point, completing over the
+instead asks which program to use for the operands, completing over the
 .Cm [[open_with]]
 entries (then
 .Dq System default
@@ -870,7 +871,12 @@ and, when set,
 .Dq $EDITOR ) .
 An entry with
 .Cm extensions
-is offered only for matching files.
+is offered only when every operand matches.
+A command containing
+.Li {files}
+runs once with all operands; one with only
+.Li {file}
+runs once per operand.
 .Sh CONFIGURATION
 The configuration file is TOML.
 Errors never prevent

@@ -687,8 +687,8 @@ impl App {
             }
             // dired-0cz
             Some(Completion::OpenWith) => match self.prompt.as_ref().map(|p| &p.action) {
-                Some(PromptAction::OpenWith { path }) => {
-                    self.open_with_entries(path).into_iter().map(|e| e.name).collect()
+                Some(PromptAction::OpenWith { paths }) => {
+                    self.open_with_entries(paths).into_iter().map(|e| e.name).collect()
                 }
                 _ => return,
             },
@@ -855,8 +855,8 @@ impl App {
             let exact = match (p.action.completion(), &p.action) {
                 (Completion::Command, _) => registry::lookup(&p.input).is_some(),
                 // dired-0cz
-                (Completion::OpenWith, PromptAction::OpenWith { path }) => {
-                    self.open_with_entries(path).iter().any(|e| e.name == p.input)
+                (Completion::OpenWith, PromptAction::OpenWith { paths }) => {
+                    self.open_with_entries(paths).iter().any(|e| e.name == p.input)
                 }
                 // dired-2hn
                 (Completion::Theme, _) => dired_config::THEMES.contains(&p.input.as_str()),

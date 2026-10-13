@@ -365,9 +365,9 @@ impl App {
                 }
             }
             // dired-0cz
-            PromptAction::OpenWith { path } => {
-                match self.open_with_entries(&path).into_iter().find(|e| e.name == input) {
-                    Some(entry) => self.open_file_with(&entry, &path),
+            PromptAction::OpenWith { paths } => {
+                match self.open_with_entries(&paths).into_iter().find(|e| e.name == input) {
+                    Some(entry) => self.open_files_with(&entry, &paths),
                     None => self.error(format!("No such open-with candidate `{input}`")),
                 }
             }
@@ -645,13 +645,18 @@ impl App {
     }
 
     // dired-0cz
-    /// Candidates for `path`: configured entries, then built-ins, those whose
-    /// `extensions` don't match hidden; the first of a duplicated name wins.
-    pub(crate) fn open_with_entries(&self, path: &Path) -> Vec<dired_config::OpenWithEntry> {
-        let ext = path.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
+    /// Candidates for `paths`: configured entries, then built-ins; entries whose
+    /// `extensions` don't cover every path are hidden; the first of a
+    /// duplicated name wins.
+    pub(crate) fn open_with_entries(&self, paths: &[PathBuf]) -> Vec<dired_config::OpenWithEntry> {
+        let exts: Vec<String> = paths
+            .iter()
+            .map(|p| p.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default())
+            .collect();
         let mut out: Vec<dired_config::OpenWithEntry> = Vec::new();
         for e in self.config.open_with.iter().cloned().chain(crate::services::builtin_open_with()) {
-            let applies = e.extensions.is_empty() || e.extensions.iter().any(|x| x.to_lowercase() == ext);
+            let applies = e.extensions.is_empty()
+                || exts.iter().all(|ext| e.extensions.iter().any(|x| x.to_lowercase() == *ext));
             if applies && !out.iter().any(|o| o.name == e.name) {
                 out.push(e);
             }
@@ -689,22 +694,42 @@ impl App {
 
     // dired-0cz
     fn open_with_at_point(&mut self) {
+        // dired-vmx: the marked entries, else the entry at point
         let d = self.dir().unwrap();
-        let Some(e) = d.point_entry() else { return };
-        if e.special {
-            return self.message("Nothing to open on this line");
-        }
-        let abs = d.abs(&e.key);
-        let label = format!("Open {} with: ", e.name);
-        self.open_prompt(label, "", PromptAction::OpenWith { path: abs });
+        let ops = d.operands();
+        let paths: Vec<PathBuf> = ops.iter().map(|e| d.abs(&e.key)).collect();
+        let label = match ops.as_slice() {
+            [] => return self.message("Nothing to open on this line"),
+            [e] => format!("Open {} with: ", e.name),
+            many => format!("Open {} files with: ", many.len()),
+        };
+        self.open_prompt(label, "", PromptAction::OpenWith { paths });
     }
 
     // dired-0cz
-    fn open_file_with(&mut self, entry: &dired_config::OpenWithEntry, path: &Path) {
-        match self.svc.opener.open_with(entry, &OpenRequest { path: path.to_path_buf(), line: None }) {
-            Ok(OpenOutcome::Detached(how)) => self.message(format!("Opened {} with {how}", path.display())),
-            Ok(OpenOutcome::Foreground(spec)) => self.effects.push(Effect::Foreground(spec)),
-            Err(e) => self.error(e),
+    fn open_files_with(&mut self, entry: &dired_config::OpenWithEntry, paths: &[PathBuf]) {
+        // dired-vmx
+        let mut detached = 0;
+        let mut errors = Vec::new();
+        let mut how = String::new();
+        for r in self.svc.opener.open_with(entry, paths) {
+            match r {
+                Ok(OpenOutcome::Detached(h)) => {
+                    detached += 1;
+                    how = h;
+                }
+                Ok(OpenOutcome::Foreground(spec)) => self.effects.push(Effect::Foreground(spec)),
+                Err(e) => errors.push(e),
+            }
+        }
+        if let Some(first) = errors.first() {
+            let more = if errors.len() > 1 { format!(" (+{} more failed)", errors.len() - 1) } else { String::new() };
+            return self.error(format!("{first}{more}"));
+        }
+        match (detached, paths) {
+            (0, _) => {}
+            (1, [p]) => self.message(format!("Opened {} with {how}", p.display())),
+            _ => self.message(format!("Opened {} files with {}", paths.len(), entry.name)),
         }
     }
 

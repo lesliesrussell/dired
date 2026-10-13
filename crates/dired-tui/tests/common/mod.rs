@@ -19,8 +19,8 @@ impl Opener for NoOpen {
     fn open(&self, _: &OpenRequest) -> Result<OpenOutcome, String> {
         Ok(OpenOutcome::Detached("none".into()))
     }
-    fn open_with(&self, _: &OpenWithEntry, _: &OpenRequest) -> Result<OpenOutcome, String> {
-        Ok(OpenOutcome::Detached("none".into()))
+    fn open_with(&self, _: &OpenWithEntry, _: &[std::path::PathBuf]) -> Vec<Result<OpenOutcome, String>> {
+        vec![Ok(OpenOutcome::Detached("none".into()))]
     }
 }
 

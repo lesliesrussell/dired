@@ -169,11 +169,13 @@ extensions = ["rs", "toml", "md", "txt", "json", "yaml", "yml", "py", "js", "ts"
 command    = ["vim", "+{line}", "{file}"]   # or nvim / hx / emacs -nw / micro
 terminal   = true
 
-# ── Open with (O on the entry at point) ──────────────────────────────────────
+# ── Open with (O on the marked files, else the file at point) ────────────────────────────────────
 # Candidates for the picker, in order; "System default" and "$EDITOR" are always
 # added after these. `extensions` limits an entry to matching files (omit it to
-# offer the entry for everything). {file} is the path; terminal = true suspends
-# the UI. Rebind with: command = "dired-open-with".
+# offer the entry for everything; with several files it must match all of them).
+# {file} is the path; terminal = true suspends the UI. With several files, a
+# command containing {files} runs once with every path, one with only {file}
+# runs once per file. Rebind with: command = "dired-open-with".
 
 [[open_with]]
 name       = "Preview"
@@ -182,7 +184,7 @@ extensions = ["png", "jpg", "jpeg", "pdf"]
 
 [[open_with]]
 name     = "Neovim"
-command  = ["nvim", "{file}"]
+command  = ["nvim", "-p", "{files}"]   # all marked files in tabs
 terminal = true
 
 # ── Shell mode ───────────────────────────────────────────────────────────────
