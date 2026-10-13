@@ -25,6 +25,21 @@ columns     = ["permissions", "size", "mtime"]
 # the other window, as Emacs's dired-dwim-target does.
 dwim_target = true
 
+# Look of the whole UI. M-x cycle-style previews all three live.
+#   rich     rounded framed windows, file-type icons, column labels
+#   clean    airy: header rule, gutter, wider columns (default)
+#   minimal  compact, plain mode line
+style       = "clean"
+
+# Per-feature overrides on top of the style (all optional).
+[display.ui]
+# borders       = false       # rounded, titled window frames
+# icons         = false       # file-type icons (needs a Nerd Font; see [theme.glyphs])
+# scrollbar     = true
+# column_colors = true        # size by magnitude, mtime by age
+# mode_line     = "segmented" # or "plain"
+# popup         = true        # completion list as a floating box
+
 # ── Theme ────────────────────────────────────────────────────────────────────
 # Built-ins: default, high-contrast, mono, nord, gruvbox, solarized-dark, dracula.
 # Hex colors render exactly on truecolor terminals (COLORTERM=truecolor) and are
@@ -77,6 +92,13 @@ marked  = "●"
 flagged = "✗"
 error   = "!"
 changed = "✎"                    # edited name in Wdired (C-x C-q)
+# File-type icons (style = "rich" or [display.ui] icons = true). The defaults
+# are Nerd Font glyphs; use plain characters if your font lacks them.
+# icon_dir     = "d"
+# icon_file    = "-"
+# icon_symlink = "@"
+# icon_exec    = "*"
+# icon_special = "?"
 
 # ── Key bindings ─────────────────────────────────────────────────────────────
 # mode: global | dired | wdired | preview | text   (default: dired)

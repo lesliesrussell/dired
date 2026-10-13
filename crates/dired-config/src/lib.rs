@@ -594,4 +594,16 @@ key = "C-c p"
         assert_eq!(c.theme.glyphs.icon_dir, "D");
         assert_eq!(c.theme.glyphs.icon_file, Glyphs::default().icon_file);
     }
+
+    // dired-p2d
+    #[test]
+    fn example_config_documents_styles() {
+        let text = include_str!("../../../examples/config.toml");
+        for needle in ["style", "[display.ui]", "cycle-style", "icon_dir"] {
+            assert!(text.contains(needle), "examples/config.toml should mention {needle}");
+        }
+        let (c, d) = Config::parse(text, "examples/config.toml");
+        assert!(d.is_empty(), "{d:?}");
+        assert_eq!(c.display.style, "clean");
+    }
 }

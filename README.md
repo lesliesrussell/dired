@@ -784,6 +784,7 @@ Undo is best-effort. If files changed in the meantime, some steps may fail, and 
 | `dired-sort-reverse` | Reverse the sort order |
 | `dired-sort-toggle-dirs-first` | List directories first, or mixed in |
 | `cycle-theme` | Try the next color theme |
+| `cycle-style` | Try the next UI style (rich, clean, minimal) |
 | `dired-reload-config` | Re-read the config file |
 | `view-diagnostics`, `view-messages` | Configuration problems / message history |
 
@@ -800,6 +801,33 @@ You can bind any of these to keys in your config (next section).
 ```sh
 cp examples/config.toml ~/.config/dired/config.toml
 ```
+
+### Styles
+
+dired has three looks, chosen with `[display] style`:
+
+| Style | Look |
+|---|---|
+| `clean` (default) | Airy: a rule under the header, a left gutter, wider columns, a two-tone mode line. No font requirements. |
+| `rich` | Rounded titled frames around each window, column labels, file-type icons (Nerd Font), scrollbar on the border. |
+| `minimal` | The compact layout, plus colored size/age columns, a scrollbar and a floating completion box. |
+
+`M-x cycle-style` switches between them for the session, so you can try each one. Individual features can be forced on or off under `[display.ui]`:
+
+```toml
+[display]
+style = "clean"
+
+[display.ui]
+borders       = true        # frames in any style
+icons         = false       # icons need a Nerd Font; set the characters under [theme.glyphs]
+scrollbar     = true
+column_colors = true        # sizes: grey under 1K, plain under 1M, yellow under 1G, red above; times: green today, plain this month, grey older
+mode_line     = "segmented" # or "plain"
+popup         = true        # completion candidates in a floating box
+```
+
+Everything still goes through the theme, so `NO_COLOR` and the `mono` theme keep working. The powerline-style mode-line separators are only used when icons are on and the theme has two distinct background colors.
 
 ### Themes
 

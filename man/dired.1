@@ -878,6 +878,26 @@ and
 .It Cm dwim_target
 Offer the directory in another window as the copy and move destination
 (default true).
+.It Cm style
+The look of the interface:
+.Cm rich
+(framed windows, icons),
+.Cm clean
+(default) or
+.Cm minimal .
+.Ic cycle\-style
+switches between them for the session.
+.It Cm [display.ui]
+Per-feature overrides of the style:
+.Cm borders ,
+.Cm icons ,
+.Cm scrollbar ,
+.Cm column_colors
+and
+.Cm popup
+(booleans), and
+.Cm mode_line
+.Pq Qq segmented No or Qq plain .
 .El
 .It Cm [theme]
 .Bl -tag -width "show_hidden" -compact
