@@ -787,6 +787,7 @@ Undo is best-effort. If files changed in the meantime, some steps may fail, and 
 | `cycle-theme` | Try the next color theme |
 | `load-theme` | Ask for a theme by name (`TAB` completes, `C-n` / `C-p` pick) and switch to it |
 | `cycle-style` | Try the next UI style (rich, clean, minimal) |
+| `load-style` | Ask for a UI style by name (`TAB` completes, `C-n` / `C-p` pick) and switch to it |
 | `dired-reload-config` | Re-read the config file |
 | `view-diagnostics`, `view-messages` | Configuration problems / message history |
 
@@ -814,7 +815,7 @@ dired has three looks, chosen with `[display] style`:
 | `rich` | Rounded titled frames around each window, column labels, file-type icons (Nerd Font), scrollbar on the border. |
 | `minimal` | The compact layout, plus colored size/age columns, a scrollbar and a floating completion box. |
 
-`M-x cycle-style` switches between them for the session, so you can try each one. Individual features can be forced on or off under `[display.ui]`:
+`M-x cycle-style` steps through them and `M-x load-style` picks one by name (the prompt starts on the active style); both last for the session, so you can try each one. Put `style = "..."` under `[display]` to make it permanent. Individual features can be forced on or off under `[display.ui]`:
 
 ```toml
 [display]

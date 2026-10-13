@@ -694,6 +694,8 @@ impl App {
             },
             // dired-2hn
             Some(Completion::Theme) => dired_config::THEMES.iter().map(|t| t.to_string()).collect(),
+            // dired-5xb
+            Some(Completion::Style) => dired_config::STYLES.iter().map(|t| t.to_string()).collect(),
             _ => return,
         };
         let p = self.prompt.as_mut().unwrap();
@@ -783,7 +785,7 @@ impl App {
     fn complete(&mut self) {
         let p = self.prompt.as_mut().unwrap();
         match p.action.completion() {
-            Completion::Command | Completion::Buffer | Completion::OpenWith | Completion::Theme => {
+            Completion::Command | Completion::Buffer | Completion::OpenWith | Completion::Theme | Completion::Style => {
                 if let Some(c) = p.candidates.get(p.selected).cloned() {
                     if c == p.input && p.candidates.len() > 1 {
                         p.selected = (p.selected + 1) % p.candidates.len();
@@ -858,6 +860,7 @@ impl App {
                 }
                 // dired-2hn
                 (Completion::Theme, _) => dired_config::THEMES.contains(&p.input.as_str()),
+                (Completion::Style, _) => dired_config::STYLES.contains(&p.input.as_str()), // dired-5xb
                 _ => self.find_buffer(&p.input).is_some(),
             };
             // dired-t1z: an explicit pick wins even over an exact match

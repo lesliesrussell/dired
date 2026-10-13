@@ -264,6 +264,17 @@ impl App {
                     p.selected = i;
                 }
             }
+            // dired-5xb
+            "load-style" => {
+                let cur = self.config.display.style.clone();
+                self.open_prompt("Load style: ", "", PromptAction::LoadStyle);
+                // Start on the active style so RET without typing keeps it.
+                if let (Some(i), Some(p)) =
+                    (dired_config::STYLES.iter().position(|s| *s == cur), self.prompt.as_mut())
+                {
+                    p.selected = i;
+                }
+            }
             // dired-p2d
             "cycle-style" => {
                 let cur = self.config.display.style.as_str();
@@ -329,6 +340,17 @@ impl App {
                 self.open_dir(expand_path(&input, &base));
             }
             PromptAction::FindFile => self.open_path(expand_path(&input, &base), true),
+            // dired-5xb
+            PromptAction::LoadStyle => {
+                if dired_config::STYLES.contains(&input.as_str()) {
+                    self.config.display.style = input.clone();
+                    self.config_gen += 1;
+                    let note = if self.config.display.ui.is_empty() { "" } else { " (with overrides)" };
+                    self.message(format!("Style: {input}{note}"));
+                } else {
+                    self.error(format!("No such style `{input}` ({})", dired_config::STYLES.join(", ")));
+                }
+            }
             // dired-2hn
             PromptAction::LoadTheme => {
                 if dired_config::THEMES.contains(&input.as_str()) {

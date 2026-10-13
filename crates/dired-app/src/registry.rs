@@ -84,6 +84,7 @@ cmds! {
     "find-file-other-window" [] "Prompt for a path and open it in the other window.";
     "switch-to-buffer-other-window" [] "Show a buffer in the other window.";
     "dired-find-file-other-window" ["dired-visit-other-window"] "Visit the entry at point in the other window.";
+    "load-style" [] "Prompt for a UI style (with completion) and switch to it for this session.";
     "cycle-style" [] "Switch to the next UI style: rich, clean, minimal (for this session).";
     "cycle-theme" [] "Switch to the next built-in theme (for this session).";
     "load-theme" [] "Prompt for a built-in theme (with completion) and switch to it for this session.";

@@ -18,6 +18,8 @@ pub enum Completion {
     OpenWith,
     // dired-2hn
     Theme,
+    // dired-5xb
+    Style,
 }
 
 impl Completion {
@@ -25,7 +27,10 @@ impl Completion {
     /// Completions whose candidate list is a closed set the user picks from:
     /// the highlighted candidate is accepted, and C-n/C-p move it.
     pub fn picks(self) -> bool {
-        matches!(self, Completion::Command | Completion::Buffer | Completion::OpenWith | Completion::Theme)
+        matches!(
+            self,
+            Completion::Command | Completion::Buffer | Completion::OpenWith | Completion::Theme | Completion::Style
+        )
     }
 }
 
@@ -61,6 +66,8 @@ pub enum PromptAction {
     OpenWith { path: PathBuf },
     // dired-2hn
     LoadTheme,
+    // dired-5xb
+    LoadStyle,
 }
 
 impl PromptAction {
@@ -84,6 +91,7 @@ impl PromptAction {
             // dired-0cz
             PromptAction::OpenWith { .. } => "open-with",
             PromptAction::LoadTheme => "theme", // dired-2hn
+            PromptAction::LoadStyle => "style", // dired-5xb
             PromptAction::Isearch { .. } => "isearch",
             PromptAction::ConfirmShell { .. }
             | PromptAction::ConfirmKill(_)
@@ -106,6 +114,7 @@ impl PromptAction {
             // dired-0cz
             PromptAction::OpenWith { .. } => Completion::OpenWith,
             PromptAction::LoadTheme => Completion::Theme, // dired-2hn
+            PromptAction::LoadStyle => Completion::Style, // dired-5xb
             _ => Completion::None,
         }
     }
