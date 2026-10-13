@@ -32,6 +32,8 @@ pub enum AppEvent {
     Completions { gen: u64, items: Vec<String> },
     UndoDone { op_id: u64, errors: Vec<String>, touched: Vec<PathBuf> },
     PathResolved { path: PathBuf, is_dir: Result<bool, String>, visit: bool, other: bool },
+    // dired-s23
+    JumpChecked { path: PathBuf, exists: bool },
     TaskFinished,
 }
 
@@ -226,6 +228,13 @@ pub async fn complete_path(fs: Arc<dyn FileSystem>, tx: Tx, gen: u64, input: Str
     };
     let items = items.into_iter().map(|n| format!("{head}{n}")).collect();
     let _ = tx.send(AppEvent::Completions { gen, items });
+}
+
+// dired-s23
+/// Whether a jump target still exists, before opening it.
+pub async fn check_jump(fs: Arc<dyn FileSystem>, tx: Tx, path: PathBuf) {
+    let exists = fs.exists(&path).await;
+    let _ = tx.send(AppEvent::JumpChecked { path, exists });
 }
 
 pub async fn undo(fs: Arc<dyn FileSystem>, trash: Arc<dyn TrashBackend>, tx: Tx, op_id: u64, steps: Vec<UndoStep>) {

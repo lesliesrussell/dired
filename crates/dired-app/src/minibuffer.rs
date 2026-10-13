@@ -20,6 +20,9 @@ pub enum Completion {
     Theme,
     // dired-5xb
     Style,
+    // dired-s23
+    Jump,
+    Bookmark,
 }
 
 impl Completion {
@@ -29,7 +32,13 @@ impl Completion {
     pub fn picks(self) -> bool {
         matches!(
             self,
-            Completion::Command | Completion::Buffer | Completion::OpenWith | Completion::Theme | Completion::Style
+            Completion::Command
+                | Completion::Buffer
+                | Completion::OpenWith
+                | Completion::Theme
+                | Completion::Style
+                | Completion::Jump
+                | Completion::Bookmark
         )
     }
 }
@@ -70,6 +79,10 @@ pub enum PromptAction {
     LoadStyle,
     // dired-tlu
     MarkWhere(EntryState),
+    // dired-s23
+    Jump,
+    BookmarkSet,
+    BookmarkDelete,
 }
 
 impl PromptAction {
@@ -95,6 +108,8 @@ impl PromptAction {
             PromptAction::LoadTheme => "theme", // dired-2hn
             PromptAction::LoadStyle => "style", // dired-5xb
             PromptAction::MarkWhere(_) => "predicate", // dired-tlu
+            PromptAction::Jump => "jump", // dired-s23
+            PromptAction::BookmarkSet | PromptAction::BookmarkDelete => "bookmark",
             PromptAction::Isearch { .. } => "isearch",
             PromptAction::ConfirmShell { .. }
             | PromptAction::ConfirmKill(_)
@@ -118,6 +133,8 @@ impl PromptAction {
             PromptAction::OpenWith { .. } => Completion::OpenWith,
             PromptAction::LoadTheme => Completion::Theme, // dired-2hn
             PromptAction::LoadStyle => Completion::Style, // dired-5xb
+            PromptAction::Jump => Completion::Jump, // dired-s23
+            PromptAction::BookmarkDelete => Completion::Bookmark,
             _ => Completion::None,
         }
     }

@@ -140,6 +140,22 @@ impl App {
             "dired-mark-files-regexp" => self.open_prompt("Mark files (regexp): ", "", PromptAction::MarkRegexp(EntryState::Marked)),
             "dired-flag-files-regexp" => self.open_prompt("Flag for deletion (regexp): ", "", PromptAction::MarkRegexp(EntryState::DeleteFlagged)),
             "dired-unmark-files-regexp" => self.open_prompt("Unmark files (regexp): ", "", PromptAction::MarkRegexp(EntryState::Unmarked)),
+            // dired-s23
+            "jump-to-directory" => self.open_prompt("Jump to: ", "", PromptAction::Jump),
+            "dired-bookmark-set" => {
+                let name = self
+                    .current_dir_root()
+                    .and_then(|r| r.file_name().map(|n| n.to_string_lossy().into_owned()))
+                    .unwrap_or_default();
+                self.open_prompt("Bookmark name: ", name, PromptAction::BookmarkSet)
+            }
+            "dired-bookmark-delete" => {
+                if self.jumps.bookmarks.is_empty() {
+                    self.message("No bookmarks");
+                } else {
+                    self.open_prompt("Delete bookmark: ", "", PromptAction::BookmarkDelete)
+                }
+            }
             // dired-tlu
             "dired-mark-files-where" => {
                 self.open_prompt("Mark files where: ", "", PromptAction::MarkWhere(EntryState::Marked))
@@ -443,6 +459,33 @@ impl App {
             }
             PromptAction::MarkRegexp(state) => self.mark_regexp(&input, state),
             PromptAction::MarkWhere(state) => self.mark_where(&input, state), // dired-tlu
+            // dired-s23
+            PromptAction::Jump => match self.jump_entries().into_iter().find(|(l, _)| *l == input) {
+                Some((_, path)) => {
+                    let (fs, tx) = (self.svc.fs.clone(), self.tx.clone());
+                    self.spawn(tasks::check_jump(fs, tx, path));
+                }
+                None => self.error(format!("No such jump target `{input}`")),
+            },
+            PromptAction::BookmarkSet => {
+                let name = input.trim().to_string();
+                let Some(root) = self.current_dir_root() else { return };
+                if name.is_empty() {
+                    return self.error("Bookmark name cannot be empty");
+                }
+                let updated = self.jumps.set_bookmark(&name, root.clone());
+                self.save_jumps();
+                let verb = if updated { "Bookmark {n} updated" } else { "Bookmarked {n}" };
+                self.message(format!("{} → {}", verb.replace("{n}", &name), root.display()));
+            }
+            PromptAction::BookmarkDelete => {
+                if self.jumps.delete_bookmark(&input) {
+                    self.save_jumps();
+                    self.message(format!("Deleted bookmark {input}"));
+                } else {
+                    self.error(format!("No such bookmark `{input}`"));
+                }
+            }
             PromptAction::RenameRegexpFrom => match regex::Regex::new(&input) {
                 Ok(_) => self.open_prompt(format!("Rename {input} to: "), "", PromptAction::RenameRegexpTo(input)),
                 Err(e) => self.error(format!("invalid regexp: {e}")),

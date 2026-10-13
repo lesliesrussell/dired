@@ -94,6 +94,8 @@ pub struct App {
     message: Option<(String, bool)>,
     pub(crate) messages: Vec<String>,
     pub(crate) history: HashMap<String, Vec<String>>,
+    // dired-s23
+    pub(crate) jumps: crate::jumps::Jumps,
     pub(crate) journal: Vec<JournalEntry>,
     pub(crate) diagnostics: Vec<Diagnostic>,
     pub(crate) viewport: usize,
@@ -137,6 +139,7 @@ impl App {
             message: None,
             messages: Vec::new(),
             history: HashMap::new(),
+            jumps: crate::jumps::Jumps::default(), // dired-s23
             journal: Vec::new(),
             diagnostics: Vec::new(),
             viewport: 20,
@@ -151,6 +154,7 @@ impl App {
             config_gen: 0,
         };
         app.load_history();
+        app.load_jumps(); // dired-s23
         app.set_diagnostics(config_diags.into_iter().chain(key_diags).collect());
         app
     }
@@ -473,6 +477,9 @@ impl App {
     /// Open or focus a directory buffer.
     pub fn open_dir(&mut self, path: impl AsRef<Path>) -> BufferId {
         let path = normalize(path.as_ref());
+        // dired-s23: every opening or refocusing counts as a visit
+        self.jumps.record_visit(&path, self.svc.clock.unix());
+        self.save_jumps();
         if let Some(id) = self
             .buffers
             .iter()
@@ -694,6 +701,9 @@ impl App {
             },
             // dired-2hn
             Some(Completion::Theme) => dired_config::THEMES.iter().map(|t| t.to_string()).collect(),
+            // dired-s23
+            Some(Completion::Jump) => self.jump_entries().into_iter().map(|(l, _)| l).collect(),
+            Some(Completion::Bookmark) => self.jumps.bookmarks.iter().map(|(n, _)| n.clone()).collect(),
             // dired-5xb
             Some(Completion::Style) => dired_config::STYLES.iter().map(|t| t.to_string()).collect(),
             _ => return,
@@ -785,7 +795,13 @@ impl App {
     fn complete(&mut self) {
         let p = self.prompt.as_mut().unwrap();
         match p.action.completion() {
-            Completion::Command | Completion::Buffer | Completion::OpenWith | Completion::Theme | Completion::Style => {
+            Completion::Command
+            | Completion::Buffer
+            | Completion::OpenWith
+            | Completion::Theme
+            | Completion::Style
+            | Completion::Jump
+            | Completion::Bookmark => {
                 if let Some(c) = p.candidates.get(p.selected).cloned() {
                     if c == p.input && p.candidates.len() > 1 {
                         p.selected = (p.selected + 1) % p.candidates.len();
@@ -861,6 +877,9 @@ impl App {
                 // dired-2hn
                 (Completion::Theme, _) => dired_config::THEMES.contains(&p.input.as_str()),
                 (Completion::Style, _) => dired_config::STYLES.contains(&p.input.as_str()), // dired-5xb
+                // dired-s23
+                (Completion::Jump, _) => self.jump_entries().iter().any(|(l, _)| *l == p.input),
+                (Completion::Bookmark, _) => self.jumps.bookmarks.iter().any(|(n, _)| *n == p.input),
                 _ => self.find_buffer(&p.input).is_some(),
             };
             // dired-t1z: an explicit pick wins even over an exact match
@@ -1019,6 +1038,16 @@ impl App {
             AppEvent::ProcLine { buf, line, stderr } => self.proc_line(buf, line, stderr),
             AppEvent::ProcExit { buf, code, error } => self.proc_exit(buf, code, error),
             AppEvent::Completions { gen, items } => self.apply_completions(gen, items),
+            // dired-s23
+            AppEvent::JumpChecked { path, exists } => {
+                if exists {
+                    self.open_dir(&path);
+                } else {
+                    self.jumps.forget(&path);
+                    self.save_jumps();
+                    self.error(format!("{} no longer exists", path.display()));
+                }
+            }
             AppEvent::UndoDone { op_id, errors, touched } => self.undo_done(op_id, errors, touched),
             AppEvent::PathResolved { path, is_dir, visit, other } => self.path_resolved(path, is_dir, visit, other),
         }
@@ -1142,6 +1171,29 @@ impl App {
                 }
             }
         }
+    }
+
+    // dired-s23
+    fn load_jumps(&mut self) {
+        if let Some(dir) = &self.svc.state_dir {
+            self.jumps = crate::jumps::Jumps::load(dir, self.config.safety.persist_history);
+        }
+    }
+
+    pub(crate) fn save_jumps(&self) {
+        if let Some(dir) = &self.svc.state_dir {
+            self.jumps.save(dir, self.config.safety.persist_history);
+        }
+    }
+
+    /// Root of the directory buffer in front, if it is one.
+    pub(crate) fn current_dir_root(&self) -> Option<PathBuf> {
+        self.active().dir().map(|d| d.root.clone())
+    }
+
+    /// The jump picker's lines and the directory each opens.
+    pub(crate) fn jump_entries(&self) -> Vec<(String, PathBuf)> {
+        self.jumps.entries(self.svc.clock.unix(), self.current_dir_root().as_deref())
     }
 
     fn save_history(&self) {

@@ -166,6 +166,17 @@ Search ignores case unless you type an uppercase letter ("smart case"). If nothi
 | `C-x d` | Ask for a directory path and open it |
 | `C-x C-f` | Ask for any path: directories open in dired, files are visited |
 | `g` | Reload the listing from disk |
+| `J` | **Jump** to a bookmarked or frequently used directory (see below) |
+| `C-x r m` | Bookmark the current directory under a name |
+| `C-x r d` | Delete a bookmark |
+
+**Jumping (`J`)** opens a picker of places you go often, so you rarely type a path. It lists your **bookmarks** first (`★ proj  /Users/me/repo/proj`), then the directories you open most, ranked by how often and how recently (opened in the last hour counts four times, in the last day twice, in the last week half, older a quarter). The directory you are in is left out. It uses the same prompt as `M-x`: type to narrow (a fragment of the name *or* the path matches), `C-n` / `C-p` or the arrows to move, `TAB` to complete, `RET` to go.
+
+- `C-x r m` bookmarks the current directory. The prompt starts with the directory's name; type another name if you like. Using a name again moves that bookmark.
+- `C-x r d` picks a bookmark to delete.
+- Every directory you open, focus, or reach with `^` counts as a visit. At most 500 are kept; the lowest ranked go first.
+- If a chosen directory no longer exists, dired says so and forgets it (a bookmark stays until you delete it).
+- Bookmarks are saved in `jumps.json` in dired's state directory. The automatic visit counts are saved there too unless you set `persist_history = false` under `[safety]`.
 
 **Visiting a directory** opens it in a new buffer. If it is already open, dired switches to that buffer instead of opening a second copy.
 
@@ -742,6 +753,8 @@ Undo is best-effort. If files changed in the meantime, some steps may fail, and 
 |---|---|---|
 | `RET` `f` `e` | `dired-visit` | Open directory / visit file |
 | `O` | `dired-open-with` | Choose a program to open the marked files (else the file at point) |
+| `J` | `jump-to-directory` | Pick a bookmark or frequent directory and open it |
+| `C-x r m` / `C-x r d` | `dired-bookmark-set` / `dired-bookmark-delete` | Bookmark the current directory / delete a bookmark |
 | `w` / `W` | `dired-copy-name` / `dired-copy-path` | Copy names / full paths of the marked entries (else point) to the clipboard |
 | `% M` / `% D` / `% U` | `dired-mark-files-where` / `dired-flag-files-where` / `dired-unmark-files-where` | Mark / flag / unmark by size, age, type, extension or name |
 | `^` | `dired-up-directory` | Parent directory |

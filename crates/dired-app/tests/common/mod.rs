@@ -48,6 +48,18 @@ pub fn harness(fs: Arc<dyn FileSystem>, trash: Arc<MockTrash>) -> H {
 }
 
 pub fn harness_with(fs: Arc<dyn FileSystem>, trash: Arc<MockTrash>, config: Config, diags: Vec<Diagnostic>) -> H {
+    harness_state(fs, trash, config, diags, None)
+}
+
+// dired-s23
+/// Like [`harness_with`], persisting history and jumps in `state_dir`.
+pub fn harness_state(
+    fs: Arc<dyn FileSystem>,
+    trash: Arc<MockTrash>,
+    config: Config,
+    diags: Vec<Diagnostic>,
+    state_dir: Option<PathBuf>,
+) -> H {
     let opener = Arc::new(MockOpener::default());
     let runner = Arc::new(MockRunner::default());
     let clock = Arc::new(MockClock::default());
@@ -57,7 +69,7 @@ pub fn harness_with(fs: Arc<dyn FileSystem>, trash: Arc<MockTrash>, config: Conf
         runner: runner.clone(),
         opener: opener.clone(),
         clock: clock.clone(),
-        state_dir: None,
+        state_dir,
     };
     let mut app = App::new(config, diags, svc);
     let rx = app.take_events();

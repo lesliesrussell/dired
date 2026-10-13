@@ -119,6 +119,10 @@ const DEFAULTS: &[(Mode, &str, &str)] = &[
     (Mode::Dired, "e", "dired-visit"),
     // dired-0cz
     (Mode::Dired, "O", "dired-open-with"),
+    // dired-s23
+    (Mode::Dired, "J", "jump-to-directory"),
+    (Mode::Global, "C-x r m", "dired-bookmark-set"),
+    (Mode::Global, "C-x r d", "dired-bookmark-delete"),
     // dired-vhh
     (Mode::Dired, "w", "dired-copy-name"),
     (Mode::Dired, "W", "dired-copy-path"),

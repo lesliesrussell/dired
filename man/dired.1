@@ -221,6 +221,17 @@ and
 .Dq $EDITOR ;
 see
 .Sx OPENERS .
+.It Cm J
+Pick a bookmark or a frequently used directory and open it
+.Pq Ic jump\-to\-directory .
+Bookmarks come first, then directories ranked by how often and how recently
+they were opened; typing narrows the list as in
+.Ic M\-x .
+.It Cm C\-x r m , Cm C\-x r d
+Bookmark the current directory under a name
+.Pq Ic dired\-bookmark\-set ,
+or delete a bookmark
+.Pq Ic dired\-bookmark\-delete .
 .It Cm ^
 Visit the parent directory with point on the current one
 .Pq Ic dired\-up\-directory .
@@ -1116,6 +1127,10 @@ Configuration; defaults to
 .Pa ~/.config/dired/config.toml .
 .It Pa history.json
 Minibuffer history, in the state directory.
+.It Pa jumps.json
+Bookmarks and, unless
+.Cm persist_history
+is false, visit counts for the jump list, in the state directory.
 .It Pa journal.jsonl
 Operation journal, one JSON record per operation, in the state directory.
 .It Pa diagnostics.log

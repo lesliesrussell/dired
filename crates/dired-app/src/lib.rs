@@ -7,6 +7,7 @@ mod app;
 pub mod buffers;
 mod commands;
 pub mod dirbuf;
+pub mod jumps;
 pub mod keymap;
 pub mod minibuffer;
 pub mod registry;
