@@ -188,6 +188,7 @@ pub async fn run(mut app: App) -> io::Result<()> {
                     if let Some(err) = run_foreground(&mut terminal, &paused, spec)? {
                         app.error(err);
                     }
+                    app.foreground_finished(); // dired-blw: show what the program changed
                     dirty = true;
                 }
                 // dired-vhh

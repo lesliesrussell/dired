@@ -248,8 +248,11 @@ in the other window; files are opened as with
 .Cm RET
 .Pq Ic dired\-find\-file\-other\-window .
 .It Cm g
-Reread the directory asynchronously, keeping point on the same entry
+Reread the directory asynchronously, keeping point on the same entry, and
+ask git for its status again
 .Pq Ic revert\-buffer .
+This also happens automatically, for every directory on screen, when a
+program that dired suspended itself for (an editor, a pager) exits.
 .It Cm C\-x d
 Prompt for a directory and open it
 .Pq Ic dired\-open\-directory .

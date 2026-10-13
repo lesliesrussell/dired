@@ -530,6 +530,20 @@ impl App {
         }
     }
 
+    // dired-blw
+    /// A program that took over the terminal (an editor, a pager) has exited.
+    /// Whatever it did to files is not in the listings yet, so refresh every
+    /// directory buffer on screen; that also asks git again.
+    pub fn foreground_finished(&mut self) {
+        let mut ids: Vec<BufferId> = self.windows.iter().map(|w| w.buffer).collect();
+        ids.push(self.active);
+        ids.sort_unstable();
+        ids.dedup();
+        for id in ids {
+            self.revert(id);
+        }
+    }
+
     /// Open a path from the command line: directories open, files open their
     /// parent with point on the file.
     pub fn open_path(&mut self, path: impl AsRef<Path>, visit: bool) {

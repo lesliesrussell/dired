@@ -79,6 +79,20 @@ pub fn harness_state(
     diags: Vec<Diagnostic>,
     state_dir: Option<PathBuf>,
 ) -> H {
+    harness_git(fs, trash, config, diags, state_dir, None)
+}
+
+// dired-blw
+/// Like [`harness_state`], optionally with a different git probe (for example
+/// the real `SystemGit`); `H::git` is then an unused mock.
+pub fn harness_git(
+    fs: Arc<dyn FileSystem>,
+    trash: Arc<MockTrash>,
+    config: Config,
+    diags: Vec<Diagnostic>,
+    state_dir: Option<PathBuf>,
+    probe: Option<Arc<dyn GitProbe>>,
+) -> H {
     let opener = Arc::new(MockOpener::default());
     let runner = Arc::new(MockRunner::default());
     let clock = Arc::new(MockClock::default());
@@ -89,7 +103,7 @@ pub fn harness_state(
         runner: runner.clone(),
         opener: opener.clone(),
         clock: clock.clone(),
-        git: git.clone(),
+        git: probe.unwrap_or_else(|| git.clone()),
         state_dir,
     };
     let mut app = App::new(config, diags, svc);

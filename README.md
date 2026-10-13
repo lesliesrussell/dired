@@ -8,7 +8,7 @@
 
 A terminal file manager that works like Emacs Dired. Each directory is shown as a list of lines, one per file. You move a cursor (called **point**) up and down, **mark** the files you want, and then run a command on all of them at once: copy, move, delete, rename, chmod, or run any program. Nothing destructive happens without a preview that you confirm.
 
-You don't need to know Emacs to use it. This README explains everything from scratch.
+You don't need to know Emacs to use it. This README explains everything from scratch!
 
 **Requirements:** a Rust toolchain ([rustup](https://rustup.rs)) to build, on Linux or macOS. [ripgrep](https://github.com/BurntSushi/ripgrep) is optional (content search with `A`).
 
@@ -180,7 +180,7 @@ Search ignores case unless you type an uppercase letter ("smart case"). If nothi
 | `o` | Open the directory at point in the **other window** (section 17); files open as with `RET` |
 | `C-x d` | Ask for a directory path and open it |
 | `C-x C-f` | Ask for any path: directories open in dired, files are visited |
-| `g` | Reload the listing from disk |
+| `g` | **Refresh**: reload the listing from disk (sizes, times, new and removed files) and ask git again. dired also does this by itself when a program it launched (an editor, a pager) exits |
 | `J` | **Jump** to a bookmarked or frequently used directory (see below) |
 | `C-x r m` | Bookmark the current directory under a name |
 | `C-x r d` | Delete a bookmark |
