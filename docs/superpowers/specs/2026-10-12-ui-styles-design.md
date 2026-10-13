@@ -45,8 +45,9 @@ Preset defaults:
 | mode_line      | segmented | segmented | plain   |
 | popup          | true      | true      | true    |
 
-`clean` additionally draws a header rule under the directory header and
-widens row spacing; `rich` draws the header as the window border title.
+`clean` additionally draws a `─` rule under the directory header and adds a
+one-column left gutter and a two-column gap between metadata columns
+(today: one); `rich` draws the header as the window border title.
 These two are fixed properties of the preset, not separate options.
 
 Icons are off in `clean` and `minimal` so no special font is required.
@@ -106,9 +107,10 @@ passes it down.
    (dir, symlink, executable, special, file); extension-specific icons are
    out of scope. Width accounted for in `name_w` so truncation stays
    correct (icon cell + space).
-5. **Mode line.** `segmented`: styled spans (mode/state, buffer name,
-   position `n/total`, sort key, prefix-key hint) separated by powerline-ish
-   `` / `` only when `icons` is on, else plain `│`. `plain`: today's text.
+5. **Mode line.** `segmented`: separately styled spans (state, buffer
+   name, position `n/total`, sort key, prefix-key hint) divided by Nerd Font
+   powerline separators (U+E0B0 / U+E0B2) when `icons` is on, else by a plain
+   `│`. `plain`: today's text.
 6. **Completion popup.** With `popup`, candidates render as a bordered
    `Block` anchored above the minibuffer (width = longest candidate,
    capped to the screen; `Clear` underneath), selected row highlighted;
