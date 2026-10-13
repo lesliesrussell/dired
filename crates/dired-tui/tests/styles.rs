@@ -85,3 +85,25 @@ async fn completion_popup_floats_above_the_minibuffer() {
     assert!(!rows.join("\n").contains('╭'), "{}", rows.join("\n"));
     assert!(rows[7].contains("dired-open-directory"), "{}", rows.join("\n"));
 }
+
+#[tokio::test]
+async fn mode_line_is_segmented_in_clean_and_plain_in_minimal() {
+    let fs = files(3);
+    let mut ui = Ui::open(fs.clone(), cfg("version = 1\n"), 80, 10, "/w").await;
+    let rows = ui.draw();
+    let mode = &rows[8];
+    assert!(mode.contains(" │ ") && mode.contains("/4"), "clean: {mode:?}"); // "..", f00..f02 -> n/4
+    let mut ui = Ui::open(fs, cfg("version = 1\n[display]\nstyle = \"minimal\"\n"), 80, 10, "/w").await;
+    let rows = ui.draw();
+    let mode = &rows[8];
+    assert!(!mode.contains(" │ "), "minimal: {mode:?}");
+    assert!(mode.contains("marked:"), "minimal keeps the old text: {mode:?}");
+}
+
+#[tokio::test]
+async fn mono_theme_with_segmented_mode_line_does_not_break() {
+    let c = cfg("version = 1\n[theme]\nname = \"mono\"\n[display.ui]\nicons = true\n");
+    let mut ui = Ui::open(files(3), c, 80, 10, "/w").await;
+    let rows = ui.draw();
+    assert!(!rows[8].contains('\u{e0b0}'), "{:?}", rows[8]);
+}

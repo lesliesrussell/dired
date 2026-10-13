@@ -211,6 +211,7 @@ fn draw_window(
     let dir_hdr = cx.ui.dir_header_rows();
     let mut preview: Option<(Vec<TextLine>, usize)> = None;
     let mut hdr_rows = 0;
+    let mut has_pos = true;
     let (total, shown) = match app.buffer_mut(buf).map(|b| &mut b.kind) {
         Some(BufferKind::Dir(d)) => {
             d.ensure_view();
@@ -219,6 +220,7 @@ fn draw_window(
         }
         Some(BufferKind::Text(t)) => (t.lines.len(), body.height as usize),
         Some(BufferKind::Preview(p)) => {
+            has_pos = false;
             let (lines, first) = p.lines();
             let n = lines.len();
             preview = Some((lines, first));
@@ -255,12 +257,23 @@ fn draw_window(
     }
     // Mode line (the prefix-key hint shows in the selected window's).
     let w = mode.width as usize;
-    let text = match (hint, selected) {
-        (Some(h), true) => format!(" {}  │ {}", truncate(&status, w / 2), h),
-        _ => format!(" {status}"),
-    };
-    let style = if selected { theme.status } else { theme.inactive };
-    f.render_widget(Paragraph::new(pad_right(&truncate(&text, w), w)).style(style), mode);
+    // dired-p2d
+    match cx.ui.mode_line {
+        dired_config::ModeLine::Segmented => {
+            let pos = if total == 0 || !has_pos { None } else { Some((view.point + 1, total)) };
+            let line =
+                widgets::segmented_mode_line(theme, &status, pos, hint.as_deref(), w, selected, cx.ui.icons);
+            f.render_widget(Paragraph::new(line), mode);
+        }
+        dired_config::ModeLine::Plain => {
+            let text = match (hint, selected) {
+                (Some(h), true) => format!(" {}  │ {}", truncate(&status, w / 2), h),
+                _ => format!(" {status}"),
+            };
+            let style = if selected { theme.status } else { theme.inactive };
+            f.render_widget(Paragraph::new(pad_right(&truncate(&text, w), w)).style(style), mode);
+        }
+    }
     cursor
 }
 

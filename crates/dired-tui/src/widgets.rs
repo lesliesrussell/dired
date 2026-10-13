@@ -112,6 +112,85 @@ pub fn draw_popup(
     f.render_widget(Paragraph::new(lines), inner);
 }
 
+// dired-p2d
+/// Pad `s` with spaces to `width` display columns (no truncation).
+fn pad_to(s: &str, width: usize) -> String {
+    let w = s.width();
+    if w >= width {
+        s.to_string()
+    } else {
+        format!("{s}{}", " ".repeat(width - w))
+    }
+}
+
+/// Two-tone mode line built from the status text: the buffer name on the
+/// left, then the remaining segments (status split on double spaces),
+/// `n/total`, and the prefix-key hint. Always exactly `width` columns wide.
+/// `powerline` additionally needs two distinct backgrounds in the theme.
+pub fn segmented_mode_line(
+    theme: &Theme,
+    status: &str,
+    pos: Option<(usize, usize)>,
+    hint: Option<&str>,
+    width: usize,
+    selected: bool,
+    powerline: bool,
+) -> Line<'static> {
+    let mut segs = status.split("  ").filter(|s| !s.is_empty());
+    let name = segs.next().unwrap_or("").to_string();
+    let mut rest: Vec<String> = segs.map(str::to_string).collect();
+    if let Some((n, t)) = pos {
+        rest.push(format!("{n}/{t}"));
+    }
+    if selected {
+        if let Some(h) = hint {
+            rest.push(h.to_string());
+        }
+    }
+    let alt_bg = theme.inactive.bg.or(theme.point.bg);
+    let head_style = if selected { theme.status.add_modifier(Modifier::BOLD) } else { theme.inactive };
+    let tail_style = if !selected {
+        theme.inactive
+    } else if let Some(bg) = alt_bg {
+        Style { bg: Some(bg), ..theme.status }.remove_modifier(Modifier::REVERSED)
+    } else {
+        theme.status
+    };
+    let use_powerline =
+        powerline && selected && matches!((theme.status.bg, alt_bg), (Some(a), Some(b)) if a != b);
+
+    let head = truncate(&format!(" {name} "), width);
+    let head_w = head.width();
+    let sep: Option<Span<'static>> = if use_powerline {
+        Some(Span::styled("\u{e0b0}", Style::default().fg(theme.status.bg.unwrap()).bg(alt_bg.unwrap())))
+    } else if head_w < width {
+        Some(Span::styled("│", tail_style))
+    } else {
+        None
+    };
+    let sep_w = sep.as_ref().map(|s| s.content.width()).unwrap_or(0);
+    let room = width.saturating_sub(head_w + sep_w);
+    let tail = pad_to(&truncate(&format!(" {} ", rest.join(" │ ")), room), room);
+
+    let mut spans = vec![Span::styled(head, head_style)];
+    spans.extend(sep);
+    if room > 0 {
+        spans.push(Span::styled(tail, tail_style));
+    }
+    let line = Line::from(spans);
+    let w = line.width();
+    if w > width {
+        // A separator that does not fit would overflow: fall back to the name alone.
+        return Line::from(Span::styled(pad_to(&truncate(&format!(" {name} "), width), width), head_style));
+    }
+    if w < width {
+        let mut spans = line.spans;
+        spans.push(Span::styled(" ".repeat(width - w), tail_style));
+        return Line::from(spans);
+    }
+    line
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -167,5 +246,57 @@ mod tests {
         // No room above the anchor: empty, not an underflow.
         let r = popup_rect(Rect::new(0, 0, 40, 1), Rect::new(0, 0, 40, 1), &c, 6);
         assert_eq!(r.height, 0);
+    }
+
+    const STATUS: &str = "docs  marked:1 flagged:0  [done]  filter:-  sort:name";
+
+    fn text(l: &Line) -> String {
+        l.spans.iter().map(|s| s.content.to_string()).collect()
+    }
+
+    #[test]
+    fn mode_line_has_exact_width_and_all_segments() {
+        let t = nord();
+        for w in [20usize, 40, 80, 120] {
+            let l = segmented_mode_line(&t, STATUS, Some((3, 12)), Some("C-x- 4:other"), w, true, false);
+            assert_eq!(l.width(), w, "width {w}: {:?}", text(&l));
+        }
+        let s = text(&segmented_mode_line(&t, STATUS, Some((3, 12)), Some("C-x- 4:other"), 120, true, false));
+        for part in ["docs", "marked:1 flagged:0", "[done]", "sort:name", "3/12", "C-x- 4:other"] {
+            assert!(s.contains(part), "{part} in {s:?}");
+        }
+    }
+
+    #[test]
+    fn hint_shows_only_in_the_selected_window() {
+        let t = nord();
+        let s = text(&segmented_mode_line(&t, STATUS, None, Some("C-x- 4:other"), 120, false, false));
+        assert!(!s.contains("C-x-"), "{s:?}");
+    }
+
+    #[test]
+    fn powerline_needs_two_backgrounds() {
+        let sep = "\u{e0b0}";
+        let nord = nord();
+        assert!(text(&segmented_mode_line(&nord, STATUS, None, None, 80, true, true)).contains(sep));
+        // No powerline when asked not to, or in an unselected window.
+        assert!(!text(&segmented_mode_line(&nord, STATUS, None, None, 80, true, false)).contains(sep));
+        assert!(!text(&segmented_mode_line(&nord, STATUS, None, None, 80, false, true)).contains(sep));
+        // Themes without backgrounds (default, mono) fall back to plain separators.
+        for name in ["default", "mono"] {
+            let t = Theme::builtin(name, Glyphs::default());
+            let l = segmented_mode_line(&t, STATUS, None, None, 80, true, true);
+            assert!(!text(&l).contains(sep), "{name}");
+            assert_eq!(l.width(), 80, "{name}");
+        }
+    }
+
+    #[test]
+    fn narrow_widths_truncate_instead_of_overflowing() {
+        let t = nord();
+        for w in [0usize, 1, 3, 8] {
+            let l = segmented_mode_line(&t, STATUS, Some((1, 2)), None, w, true, true);
+            assert_eq!(l.width(), w, "width {w}");
+        }
     }
 }
