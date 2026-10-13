@@ -253,6 +253,16 @@ impl App {
                 }
             }
             // dired-7yu
+            // dired-p2d
+            "cycle-style" => {
+                let cur = self.config.display.style.as_str();
+                let i = dired_config::STYLES.iter().position(|s| *s == cur).map(|i| i + 1).unwrap_or(0);
+                let next = dired_config::STYLES[i % dired_config::STYLES.len()];
+                self.config.display.style = next.to_string();
+                self.config_gen += 1;
+                let note = if self.config.display.ui.is_empty() { "" } else { " (with overrides)" };
+                self.message(format!("Style: {next}{note}"));
+            }
             "cycle-theme" => {
                 let themes = dired_config::THEMES;
                 let cur = self.config.theme.name.as_deref().unwrap_or("default");

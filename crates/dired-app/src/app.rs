@@ -97,6 +97,11 @@ pub struct App {
     pub(crate) journal: Vec<JournalEntry>,
     pub(crate) diagnostics: Vec<Diagnostic>,
     pub(crate) viewport: usize,
+    // dired-p2d
+    /// Rows each window's frame takes beyond its mode line (borders).
+    pub(crate) border_rows: usize,
+    /// Rows a directory buffer's header takes.
+    pub(crate) dir_header_rows: usize,
     pub(crate) quit: bool,
     pub(crate) effects: Vec<Effect>,
     next_op: u64,
@@ -135,6 +140,9 @@ impl App {
             journal: Vec::new(),
             diagnostics: Vec::new(),
             viewport: 20,
+            // dired-p2d
+            border_rows: 0,
+            dir_header_rows: 1,
             quit: false,
             effects: Vec::new(),
             next_op: 1,
@@ -163,6 +171,18 @@ impl App {
 
     pub fn take_effects(&mut self) -> Vec<Effect> {
         std::mem::take(&mut self.effects)
+    }
+
+    // dired-p2d
+    /// Tell the app how much of each window the frame uses; the renderer calls
+    /// this every frame, before `set_window_area`.
+    pub fn set_chrome(&mut self, border_rows: u16, dir_header_rows: u16) {
+        self.border_rows = border_rows as usize;
+        self.dir_header_rows = (dir_header_rows as usize).max(1);
+    }
+
+    pub fn viewport(&self) -> usize {
+        self.viewport
     }
 
     pub fn set_viewport(&mut self, rows: usize) {
@@ -255,10 +275,11 @@ impl App {
             }
         }
         let h = self.viewport;
+        let hdr = self.dir_header_rows; // dired-p2d
         match &mut self.active_mut().kind {
             BufferKind::Dir(d) => {
                 d.ensure_view();
-                d.adjust_top(h.saturating_sub(1));
+                d.adjust_top(h.saturating_sub(hdr));
             }
             BufferKind::Text(t) => {
                 t.point = t.point.min(t.lines.len().saturating_sub(1));

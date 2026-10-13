@@ -147,3 +147,21 @@ passes it down.
   default, with documented ASCII alternatives.
 - 24-bit color on limited terminals: unchanged, handled by the existing
   `nearest_ansi` mapping in `theme.rs`.
+
+## Amendments (from implementation planning)
+
+- **Chrome plumbing.** `dired-app` computes each window's scroll window
+  itself (`viewport`, `adjust_top`, `render_view`) and assumed exactly one
+  directory header row and no borders. The renderer therefore calls the new
+  `App::set_chrome(border_rows, dir_header_rows)` every frame before
+  `set_window_area`; `viewport = window_height - 1 - border_rows` and
+  directory scrolling subtracts `dir_header_rows`. (Replaces the earlier
+  statement that "the inner rect is what `set_window_area` receives".)
+- **Rich header.** With `borders`, the directory path and scan state go in
+  the border title, and the in-window header row shows column labels
+  (`Mode  Size  Modified  Name`) so every style keeps the same row
+  semantics. `clean` has header row + rule (2 rows); `minimal` the path row.
+- **Style-dependent separators.** With `borders`, the `│` rule between
+  side-by-side windows is not drawn (the boxes separate themselves).
+- **Segments.** The segmented mode line splits the existing status text on
+  double spaces and appends `n/total` and the prefix-key hint.

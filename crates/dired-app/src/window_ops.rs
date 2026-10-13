@@ -41,7 +41,8 @@ impl App {
     pub fn set_window_area(&mut self, w: u16, h: u16) {
         self.area = Rect { x: 0, y: 0, w, h };
         if let Some(r) = self.selected_rect() {
-            self.viewport = (r.h.saturating_sub(1)).max(1) as usize;
+            // dired-p2d
+            self.viewport = (r.h as usize).saturating_sub(1 + self.border_rows).max(1);
         }
     }
 
@@ -235,13 +236,14 @@ impl App {
             return self.snapshot(win.buffer);
         }
         let mut v = win.view.clone();
+        let hdr = self.dir_header_rows; // dired-p2d
         match self.buffer_mut(win.buffer).map(|b| &mut b.kind) {
             Some(BufferKind::Dir(d)) => {
                 d.ensure_view();
                 let n = d.rows().len();
                 let found = v.key.as_ref().and_then(|k| d.find_row(k));
                 v.point = found.unwrap_or(v.point).min(n.saturating_sub(1));
-                v.top = clamp_top(v.top, v.point, height.saturating_sub(1));
+                v.top = clamp_top(v.top, v.point, height.saturating_sub(hdr));
             }
             Some(BufferKind::Text(t)) => {
                 let last = t.lines.len().saturating_sub(1);
