@@ -749,6 +749,7 @@ impl App {
     fn prompt_changed(&mut self) {
         let p = self.prompt.as_mut().unwrap();
         p.completing_for = None;
+        p.picked = false; // dired-bmd
         if p.action.completion() == Completion::Path {
             p.candidates.clear();
         }
@@ -795,6 +796,13 @@ impl App {
                 }
             }
             Completion::Path => {
+                // dired-bmd: a picked candidate is inserted first, then completed further
+                if p.picked {
+                    if let Some(c) = p.candidates.get(p.selected).cloned() {
+                        p.set_input(c);
+                    }
+                    p.picked = false;
+                }
                 let (gen, input, base) = (p.gen, p.input.clone(), p.base_dir.clone());
                 p.completing_for = Some(input.clone());
                 let fs = self.svc.fs.clone();
@@ -820,6 +828,7 @@ impl App {
         }
         p.candidates = if items.len() == 1 { Vec::new() } else { items };
         p.selected = 0;
+        p.picked = false; // dired-bmd
     }
 
     fn push_history(&mut self, key: &str, value: &str) {
@@ -856,6 +865,12 @@ impl App {
                 if let Some(c) = p.candidates.get(p.selected) {
                     p.input = c.clone();
                 }
+            }
+        }
+        // dired-bmd: an explicitly picked path candidate is the input
+        if p.action.completion() == Completion::Path && p.picked {
+            if let Some(c) = p.candidates.get(p.selected) {
+                p.input = c.clone();
             }
         }
         // Act on the buffer the prompt belongs to, even if a background

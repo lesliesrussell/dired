@@ -131,3 +131,81 @@ command = ["b", "{file}"]
     let got = h.opener.opened_with.lock().unwrap().clone();
     assert_eq!(got[1].0, "Open");
 }
+
+// dired-bmd
+async fn path_prompt_after_tab() -> H {
+    let (fs, mut h) = mock();
+    fs.write("/w/alpha", "");
+    fs.write("/w/alpine", "");
+    fs.write("/w/beta", "");
+    h.app.open_dir("/w");
+    h.settle().await;
+    h.press("C-x C-f");
+    h.press("C-a C-k");
+    h.typ("/w/al");
+    h.press("TAB");
+    h.settle().await;
+    h
+}
+
+#[tokio::test]
+async fn path_candidates_after_tab_can_be_selected_line_by_line() {
+    let mut h = path_prompt_after_tab().await;
+    assert_eq!(h.app.prompt().unwrap().candidates, ["/w/alpha", "/w/alpine"]);
+    assert_eq!(selected(&h), 0);
+    h.press("C-n");
+    assert_eq!(selected(&h), 1);
+    h.press("C-n");
+    assert_eq!(selected(&h), 1, "clamps at the bottom");
+    h.press("C-p");
+    assert_eq!(selected(&h), 0);
+    h.press("<down>");
+    assert_eq!(selected(&h), 1);
+    h.press("<up>");
+    assert_eq!(selected(&h), 0);
+}
+
+#[tokio::test]
+async fn ret_accepts_the_picked_path() {
+    let mut h = path_prompt_after_tab().await;
+    h.press("C-n");
+    h.press("RET");
+    h.settle().await; // find-file stats the path in the background before visiting
+    let opened = h.opener.opened.lock().unwrap().clone();
+    assert_eq!(opened.len(), 1);
+    assert_eq!(opened[0].path, std::path::PathBuf::from("/w/alpine"));
+}
+
+#[tokio::test]
+async fn tab_inserts_the_picked_path() {
+    let mut h = path_prompt_after_tab().await;
+    h.press("C-n");
+    h.press("TAB");
+    h.settle().await;
+    assert_eq!(h.app.prompt().unwrap().input, "/w/alpine");
+}
+
+#[tokio::test]
+async fn editing_after_a_pick_drops_the_pick() {
+    let mut h = path_prompt_after_tab().await;
+    h.press("C-n");
+    h.typ("x");
+    assert!(h.app.prompt().unwrap().candidates.is_empty(), "stale candidates are cleared on edit");
+    assert!(!h.app.prompt().unwrap().picked);
+}
+
+#[tokio::test]
+async fn path_prompts_without_candidates_keep_up_down_history() {
+    let (fs, mut h) = mock();
+    fs.write("/w/alpha", "");
+    h.app.open_dir("/w");
+    h.settle().await;
+    h.press("C-x C-f");
+    h.press("C-a C-k");
+    h.typ("/w/alpha");
+    h.press("RET");
+    h.press("C-x C-f");
+    h.press("C-a C-k");
+    h.press("<up>");
+    assert_eq!(h.app.prompt().unwrap().input, "/w/alpha");
+}

@@ -189,7 +189,9 @@ impl Prompt {
     // dired-t1z
     /// Whether C-n/C-p/Up/Down select among candidates (rather than walk history).
     fn navigable(&self) -> bool {
-        self.action.completion().picks() && !self.candidates.is_empty()
+        // dired-bmd: path prompts list candidates only after TAB; then they navigate too
+        let c = self.action.completion();
+        (c.picks() || c == Completion::Path) && !self.candidates.is_empty()
     }
 
     pub fn edit(&mut self, key: Key) -> EditResult {

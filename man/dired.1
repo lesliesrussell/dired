@@ -727,13 +727,17 @@ Complete: paths asynchronously to the longest common prefix, commands
 and buffer names to the best fuzzy match.
 .It Cm C\-n , Cm C\-p
 Select the next or previous candidate in prompts that list candidates
-.Pq Ic M\-x , buffer switching, open-with ;
+.Pq Ic M\-x , buffer switching, open-with, theme names, and path prompts once
+.Cm TAB
+has listed the matches ;
 also
 .Cm <down>
 and
 .Cm <up> .
 .Cm RET
-then accepts the highlighted candidate.
+then accepts the highlighted candidate; in path prompts
+.Cm TAB
+inserts it and completes further.
 .It Cm M\-p , Cm M\-n
 Previous or next history entry; also
 .Cm <up>

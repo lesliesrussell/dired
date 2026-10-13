@@ -628,7 +628,7 @@ Whenever dired asks for input, you're editing a one-line text field at the botto
 | `RET` | Accept |
 | `C-g` | Cancel (nothing happens) |
 | `TAB` | Complete. For paths it fills in as much as is unambiguous and lists the choices; for commands and buffers it takes the best match |
-| `C-n` `↓` / `C-p` `↑` | In prompts with a candidate list (`M-x`, buffer switching, open-with): select the next / previous candidate, one line at a time. `RET` then runs the highlighted one, even if what you typed also matches another exactly |
+| `C-n` `↓` / `C-p` `↑` | In prompts with a candidate list (`M-x`, buffer switching, open-with, theme names, and path prompts after `TAB` has listed the matches): select the next / previous candidate, one line at a time. `RET` then accepts the highlighted one, even if what you typed also matches another exactly; in path prompts `TAB` inserts it and lists what is inside |
 | `M-p` / `M-n` | Previous / next entry from the history of this kind of prompt (`↑` / `↓` also do this when there is no candidate list) |
 | `C-a` `C-e` | Start / end of the line |
 | `C-f` `C-b` `←` `→` | Move one character |
