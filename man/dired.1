@@ -725,11 +725,21 @@ Cancel.
 .It Cm TAB
 Complete: paths asynchronously to the longest common prefix, commands
 and buffer names to the best fuzzy match.
+.It Cm C\-n , Cm C\-p
+Select the next or previous candidate in prompts that list candidates
+.Pq Ic M\-x , buffer switching, open-with ;
+also
+.Cm <down>
+and
+.Cm <up> .
+.Cm RET
+then accepts the highlighted candidate.
 .It Cm M\-p , Cm M\-n
 Previous or next history entry; also
 .Cm <up>
 and
-.Cm <down> .
+.Cm <down>
+in prompts without a candidate list.
 .It Cm C\-a , Cm C\-e
 Beginning or end of line.
 .It Cm C\-f , Cm C\-b

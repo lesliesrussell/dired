@@ -697,6 +697,7 @@ impl App {
         let p = self.prompt.as_mut().unwrap();
         p.candidates = fuzzy(&p.input, names);
         p.selected = 0;
+        p.picked = false; // dired-t1z
     }
 
     fn prompt_key(&mut self, key: Key) {
@@ -723,9 +724,24 @@ impl App {
             EditResult::Complete => self.complete(),
             EditResult::HistoryPrev => self.history_step(-1),
             EditResult::HistoryNext => self.history_step(1),
+            // dired-t1z
+            EditResult::CandidateNext => self.select_candidate(1),
+            EditResult::CandidatePrev => self.select_candidate(-1),
             EditResult::IsearchNext => self.isearch_step(true),
             EditResult::IsearchPrev => self.isearch_step(false),
         }
+    }
+
+    // dired-t1z
+    /// Move the highlighted candidate by `delta`, clamped to the list.
+    fn select_candidate(&mut self, delta: i64) {
+        let p = self.prompt.as_mut().unwrap();
+        if p.candidates.is_empty() {
+            return;
+        }
+        let last = p.candidates.len() as i64 - 1;
+        p.selected = (p.selected as i64 + delta).clamp(0, last) as usize;
+        p.picked = true;
     }
 
     fn prompt_changed(&mut self) {
@@ -833,7 +849,8 @@ impl App {
                 }
                 _ => self.find_buffer(&p.input).is_some(),
             };
-            if !exact {
+            // dired-t1z: an explicit pick wins even over an exact match
+            if !exact || p.picked {
                 if let Some(c) = p.candidates.get(p.selected) {
                     p.input = c.clone();
                 }

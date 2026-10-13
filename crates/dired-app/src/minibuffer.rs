@@ -110,6 +110,10 @@ pub struct Prompt {
     pub action: PromptAction,
     pub candidates: Vec<String>,
     pub selected: usize,
+    // dired-t1z
+    /// The user moved the selection (C-n/C-p/arrows); it then wins on submit
+    /// even when the typed text is an exact match.
+    pub picked: bool,
     pub hist_pos: Option<usize>,
     /// Bumped on every edit; stale async completions are discarded.
     pub gen: u64,
@@ -128,6 +132,9 @@ pub enum EditResult {
     HistoryNext,
     IsearchNext,
     IsearchPrev,
+    // dired-t1z
+    CandidateNext,
+    CandidatePrev,
     Unhandled,
 }
 
@@ -141,6 +148,7 @@ impl Prompt {
             action,
             candidates: Vec::new(),
             selected: 0,
+            picked: false,
             hist_pos: None,
             gen: 0,
             completing_for: None,
@@ -163,6 +171,15 @@ impl Prompt {
         self.gen += 1;
     }
 
+    // dired-t1z
+    /// Whether C-n/C-p/Up/Down select among candidates (rather than walk history).
+    fn navigable(&self) -> bool {
+        matches!(
+            self.action.completion(),
+            Completion::Command | Completion::Buffer | Completion::OpenWith
+        ) && !self.candidates.is_empty()
+    }
+
     pub fn edit(&mut self, key: Key) -> EditResult {
         let len = self.input.chars().count();
         if let Some(c) = key.printable() {
@@ -177,6 +194,13 @@ impl Prompt {
                 return EditResult::Submit
             }
             (KeyCode::Tab, false, false) | (KeyCode::Char('i'), true, false) => return EditResult::Complete,
+            // dired-t1z
+            (KeyCode::Char('p'), true, false) | (KeyCode::Up, false, false) if self.navigable() => {
+                return EditResult::CandidatePrev
+            }
+            (KeyCode::Char('n'), true, false) | (KeyCode::Down, false, false) if self.navigable() => {
+                return EditResult::CandidateNext
+            }
             (KeyCode::Char('p'), false, true) | (KeyCode::Up, false, false) => return EditResult::HistoryPrev,
             (KeyCode::Char('n'), false, true) | (KeyCode::Down, false, false) => return EditResult::HistoryNext,
             (KeyCode::Char('s'), true, false) => return EditResult::IsearchNext,

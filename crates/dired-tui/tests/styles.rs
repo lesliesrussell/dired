@@ -333,3 +333,18 @@ async fn names_are_not_truncated_while_all_columns_are_shown() {
         }
     }
 }
+
+// dired-t1z
+#[tokio::test]
+async fn the_selected_candidate_stays_visible_in_popup_and_inline_lists() {
+    for extra in ["", "[display.ui]\npopup = false\n"] {
+        let mut ui = Ui::open(files(3), cfg(&format!("version = 1\n{extra}")), 70, 20, "/w").await;
+        ui.app.press("M-x");
+        for _ in 0..9 {
+            ui.app.press("C-n");
+        }
+        let want = ui.app.prompt().unwrap().candidates[9].clone();
+        let joined = ui.draw().join("\n");
+        assert!(joined.contains(&want), "selected `{want}` not visible (extra={extra:?}):\n{joined}");
+    }
+}

@@ -156,11 +156,14 @@ pub fn draw(f: &mut Frame, app: &mut App, theme: &Theme) {
                 // dired-p2d
                 widgets::draw_popup(f, area, chunks[2], &p.candidates, p.selected, MAX_CANDIDATES, theme);
             } else {
+                // dired-t1z: scroll with the selection
+                let start = widgets::popup_window(p.selected, MAX_CANDIDATES);
                 let lines: Vec<Line> = p
                     .candidates
                     .iter()
-                    .take(MAX_CANDIDATES)
                     .enumerate()
+                    .skip(start)
+                    .take(MAX_CANDIDATES)
                     .map(|(i, c)| {
                         let st = if i == p.selected { theme.point } else { theme.dim };
                         Line::from(Span::styled(truncate(c, area.width as usize), st))
