@@ -125,6 +125,7 @@ const DEFAULTS: &[(Mode, &str, &str)] = &[
     (Mode::Global, "C-M-b", "scroll-other-window-down"),
     // dired-s23
     (Mode::Dired, "J", "jump-to-directory"),
+    (Mode::Global, "C-x 4 J", "jump-to-directory-other-window"), // dired-2fs
     (Mode::Global, "C-x r m", "dired-bookmark-set"),
     (Mode::Global, "C-x r d", "dired-bookmark-delete"),
     // dired-vhh

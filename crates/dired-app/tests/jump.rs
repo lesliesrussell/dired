@@ -216,3 +216,77 @@ async fn turning_persist_history_off_ignores_saved_visits_but_keeps_bookmarks() 
     assert!(c.contains(&"★ two  /d2".to_string()), "{c:?}");
     assert!(!c.contains(&"  /d1".to_string()), "{c:?}");
 }
+
+// dired-2fs
+fn root_of_window(h: &H, win: u64) -> PathBuf {
+    let buf = h.app.window(win).unwrap().buffer;
+    h.app.buffer(buf).unwrap().dir().expect("a directory buffer").root.clone()
+}
+
+#[tokio::test]
+async fn jumping_to_the_other_window_splits_when_there_is_only_one() {
+    let fs = fs_with(&["/d1", "/d2"]);
+    let mut h = harness(&fs);
+    h.app.set_window_area(100, 30);
+    visit(&mut h, &["/d1", "/d2"]).await;
+    let first = h.app.selected_window();
+    assert_eq!(h.app.windows().len(), 1);
+    h.press("C-x 4 J");
+    assert_eq!(candidates(&h), ["  /d1"]);
+    h.press("RET");
+    h.settle().await;
+    assert_eq!(h.app.windows().len(), 2);
+    assert_ne!(h.app.selected_window(), first, "the new window is selected");
+    assert_eq!(root(&mut h), PathBuf::from("/d1"));
+    assert_eq!(root_of_window(&h, first), PathBuf::from("/d2"), "the original window is untouched");
+}
+
+#[tokio::test]
+async fn an_existing_other_window_is_reused() {
+    let fs = fs_with(&["/d1", "/d2", "/d3"]);
+    let mut h = harness(&fs);
+    h.app.set_window_area(100, 30);
+    visit(&mut h, &["/d1", "/d2"]).await;
+    h.press("C-x 3");
+    let before = h.app.windows().len();
+    visit(&mut h, &["/d3"]).await; // the selected window now shows /d3
+    let sel = h.app.selected_window();
+    h.press("C-x 4 J");
+    h.answer("  /d1");
+    h.settle().await;
+    assert_eq!(h.app.windows().len(), before, "no further split");
+    assert_ne!(h.app.selected_window(), sel);
+    assert_eq!(root(&mut h), PathBuf::from("/d1"));
+    assert_eq!(root_of_window(&h, sel), PathBuf::from("/d3"));
+}
+
+#[tokio::test]
+async fn a_missing_target_neither_splits_nor_moves() {
+    let fs = fs_with(&["/here"]);
+    let mut h = harness(&fs);
+    h.app.set_window_area(100, 30);
+    visit(&mut h, &["/gone", "/here"]).await;
+    h.press("C-x 4 J");
+    h.press("RET");
+    h.settle().await;
+    assert!(h.echo().contains("no longer exists"), "{}", h.echo());
+    assert_eq!(h.app.windows().len(), 1);
+    assert_eq!(root(&mut h), PathBuf::from("/here"));
+}
+
+#[tokio::test]
+async fn the_command_is_in_m_x_and_plain_j_still_uses_the_same_window() {
+    let fs = fs_with(&["/d1", "/d2"]);
+    let mut h = harness(&fs);
+    h.app.set_window_area(100, 30);
+    visit(&mut h, &["/d1", "/d2"]).await;
+    h.press("M-x");
+    h.answer("jump-to-directory-other-window");
+    assert_eq!(candidates(&h), ["  /d1"]);
+    h.press("C-g");
+    h.press("J");
+    h.press("RET");
+    h.settle().await;
+    assert_eq!(h.app.windows().len(), 1, "J does not split");
+    assert_eq!(root(&mut h), PathBuf::from("/d1"));
+}

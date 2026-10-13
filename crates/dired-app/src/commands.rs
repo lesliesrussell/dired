@@ -148,7 +148,11 @@ impl App {
             "scroll-other-window" => self.scroll_other_window(1),
             "scroll-other-window-down" => self.scroll_other_window(-1),
             // dired-s23
-            "jump-to-directory" => self.open_prompt("Jump to: ", "", PromptAction::Jump),
+            "jump-to-directory" => self.open_prompt("Jump to: ", "", PromptAction::Jump { other: false }),
+            // dired-2fs
+            "jump-to-directory-other-window" => {
+                self.open_prompt("Jump to (other window): ", "", PromptAction::Jump { other: true })
+            }
             "dired-bookmark-set" => {
                 let name = self
                     .current_dir_root()
@@ -467,10 +471,10 @@ impl App {
             PromptAction::MarkRegexp(state) => self.mark_regexp(&input, state),
             PromptAction::MarkWhere(state) => self.mark_where(&input, state), // dired-tlu
             // dired-s23
-            PromptAction::Jump => match self.jump_entries().into_iter().find(|(l, _)| *l == input) {
+            PromptAction::Jump { other } => match self.jump_entries().into_iter().find(|(l, _)| *l == input) {
                 Some((_, path)) => {
                     let (fs, tx) = (self.svc.fs.clone(), self.tx.clone());
-                    self.spawn(tasks::check_jump(fs, tx, path));
+                    self.spawn(tasks::check_jump(fs, tx, path, other));
                 }
                 None => self.error(format!("No such jump target `{input}`")),
             },

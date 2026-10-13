@@ -80,7 +80,8 @@ pub enum PromptAction {
     // dired-tlu
     MarkWhere(EntryState),
     // dired-s23
-    Jump,
+    /// `other`: open the target in the other window (dired-2fs).
+    Jump { other: bool },
     BookmarkSet,
     BookmarkDelete,
 }
@@ -108,7 +109,7 @@ impl PromptAction {
             PromptAction::LoadTheme => "theme", // dired-2hn
             PromptAction::LoadStyle => "style", // dired-5xb
             PromptAction::MarkWhere(_) => "predicate", // dired-tlu
-            PromptAction::Jump => "jump", // dired-s23
+            PromptAction::Jump { .. } => "jump", // dired-s23
             PromptAction::BookmarkSet | PromptAction::BookmarkDelete => "bookmark",
             PromptAction::Isearch { .. } => "isearch",
             PromptAction::ConfirmShell { .. }
@@ -133,7 +134,7 @@ impl PromptAction {
             PromptAction::OpenWith { .. } => Completion::OpenWith,
             PromptAction::LoadTheme => Completion::Theme, // dired-2hn
             PromptAction::LoadStyle => Completion::Style, // dired-5xb
-            PromptAction::Jump => Completion::Jump, // dired-s23
+            PromptAction::Jump { .. } => Completion::Jump, // dired-s23
             PromptAction::BookmarkDelete => Completion::Bookmark,
             _ => Completion::None,
         }

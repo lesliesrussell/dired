@@ -182,6 +182,7 @@ Search ignores case unless you type an uppercase letter ("smart case"). If nothi
 | `C-x C-f` | Ask for any path: directories open in dired, files are visited |
 | `g` | **Refresh**: reload the listing from disk (sizes, times, new and removed files) and ask git again. dired also does this by itself when a program it launched (an editor, a pager) exits |
 | `J` | **Jump** to a bookmarked or frequently used directory (see below) |
+| `C-x 4 J` | Jump, but open the chosen directory in the **other window** (splitting first if there is only one) |
 | `C-x r m` | Bookmark the current directory under a name |
 | `C-x r d` | Delete a bookmark |
 
@@ -789,6 +790,7 @@ Undo is best-effort. If files changed in the meantime, some steps may fail, and 
 | `v` | `split-window-to-file-view` | Show the file at point in a read-only view window |
 | `C-M-v` / `C-M-b` | `scroll-other-window` / `scroll-other-window-down` | Scroll the other window forward / back a page |
 | `J` | `jump-to-directory` | Pick a bookmark or frequent directory and open it |
+| `C-x 4 J` | `jump-to-directory-other-window` | The same, opening it in the other window |
 | `C-x r m` / `C-x r d` | `dired-bookmark-set` / `dired-bookmark-delete` | Bookmark the current directory / delete a bookmark |
 | `w` / `W` | `dired-copy-name` / `dired-copy-path` | Copy names / full paths of the marked entries (else point) to the clipboard |
 | `% M` / `% D` / `% U` | `dired-mark-files-where` / `dired-flag-files-where` / `dired-unmark-files-where` | Mark / flag / unmark by size, age, type, extension or name |

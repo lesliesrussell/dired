@@ -1084,9 +1084,12 @@ impl App {
                 }
             }
             // dired-s23
-            AppEvent::JumpChecked { path, exists } => {
+            AppEvent::JumpChecked { path, exists, other } => {
                 if exists {
-                    self.open_dir(&path);
+                    // dired-2fs: the other window is only split once the target is known to exist
+                    if !other || self.select_other_window() {
+                        self.open_dir(&path);
+                    }
                 } else {
                     self.jumps.forget(&path);
                     self.save_jumps();

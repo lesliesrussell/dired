@@ -39,6 +39,7 @@ cmds! {
     "scroll-other-window" [] "Scroll the other window forward one page.";
     "scroll-other-window-down" [] "Scroll the other window back one page.";
     "jump-to-directory" ["jump"] "Pick a bookmark or a frequently used directory and open it.";
+    "jump-to-directory-other-window" [] "Like jump-to-directory, but open the chosen directory in the other window.";
     "dired-bookmark-set" [] "Bookmark the current directory under a name.";
     "dired-bookmark-delete" [] "Delete a bookmark.";
     "dired-up-directory" [] "Open or focus the parent directory.";

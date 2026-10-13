@@ -34,7 +34,7 @@ pub enum AppEvent {
     UndoDone { op_id: u64, errors: Vec<String>, touched: Vec<PathBuf> },
     PathResolved { path: PathBuf, is_dir: Result<bool, String>, visit: bool, other: bool },
     // dired-s23
-    JumpChecked { path: PathBuf, exists: bool },
+    JumpChecked { path: PathBuf, exists: bool, other: bool },
     // dired-6xv
     FileViewReady { gen: u64, lines: Vec<TextLine> },
     // dired-99k
@@ -313,9 +313,9 @@ async fn list_dir_names(fs: &dyn FileSystem, path: &Path) -> Result<(Vec<String>
 
 // dired-s23
 /// Whether a jump target still exists, before opening it.
-pub async fn check_jump(fs: Arc<dyn FileSystem>, tx: Tx, path: PathBuf) {
+pub async fn check_jump(fs: Arc<dyn FileSystem>, tx: Tx, path: PathBuf, other: bool) {
     let exists = fs.exists(&path).await;
-    let _ = tx.send(AppEvent::JumpChecked { path, exists });
+    let _ = tx.send(AppEvent::JumpChecked { path, exists, other });
 }
 
 pub async fn undo(fs: Arc<dyn FileSystem>, trash: Arc<dyn TrashBackend>, tx: Tx, op_id: u64, steps: Vec<UndoStep>) {

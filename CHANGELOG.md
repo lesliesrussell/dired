@@ -31,7 +31,7 @@ First release.
 - Open with (`O`): pick a program for the marked files from your `[[open_with]]` entries or the built-ins (dired-0cz, dired-vmx).
 - Copy names (`w`) or full paths (`W`) to the clipboard, via the terminal's OSC 52 escape and the platform clipboard tool (dired-vhh).
 - Mark, flag or unmark by condition (`% M` `% D` `% U`): `size>10M age>30d type=file ext=log name~re` (dired-tlu).
-- Jump list (`J`): bookmarks (`C-x r m`, `C-x r d`) and your most-used directories ranked by frequency and recency (dired-s23).
+- Jump list (`J`): bookmarks (`C-x r m`, `C-x r d`) and your most-used directories ranked by frequency and recency; `C-x 4 J` opens the target in the other window (dired-s23, dired-2fs).
 - File view (`v`): a read-only window with the start of the file, a hex dump for binaries, or a directory listing; scroll it from the directory with `C-M-v` and `C-M-b` (dired-6xv).
 - Git state: a two-letter status column, directories rolled up, and `git:branch*↑↓` in the mode line, read in the background (dired-99k).
 
