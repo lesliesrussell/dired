@@ -201,6 +201,67 @@ impl Opener for SystemOpener {
     }
 }
 
+// dired-99k
+/// Asks git about a directory. `None` when it is not inside a work tree, git
+/// is missing, or git does not answer in time.
+#[async_trait::async_trait]
+pub trait GitProbe: Send + Sync {
+    async fn status(&self, dir: &Path) -> Option<crate::git::GitStatus>;
+}
+
+/// Runs the real `git`.
+pub struct SystemGit {
+    pub program: OsString,
+    /// Give up (and report nothing) after this long.
+    pub timeout: std::time::Duration,
+}
+
+impl Default for SystemGit {
+    fn default() -> Self {
+        SystemGit { program: "git".into(), timeout: std::time::Duration::from_secs(10) }
+    }
+}
+
+impl SystemGit {
+    async fn run(&self, dir: &Path, args: &[&str]) -> Option<Vec<u8>> {
+        let out = tokio::process::Command::new(&self.program)
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            // `git status` would otherwise refresh the index and take its lock,
+            // which can make the user's own concurrent git commands fail.
+            .env("GIT_OPTIONAL_LOCKS", "0")
+            .stdin(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .kill_on_drop(true)
+            .output()
+            .await
+            .ok()?;
+        out.status.success().then_some(out.stdout)
+    }
+
+    async fn probe(&self, dir: &Path) -> Option<crate::git::GitStatus> {
+        let head = self.run(dir, &["rev-parse", "--is-inside-work-tree", "--show-prefix"]).await?;
+        let text = String::from_utf8(head).ok()?;
+        let mut lines = text.lines();
+        if lines.next()? != "true" {
+            return None; // e.g. inside the .git directory
+        }
+        let prefix = lines.next().unwrap_or("").to_string();
+        let out = self
+            .run(dir, &["status", "--porcelain=v1", "-z", "--branch", "--untracked-files=normal", "--", "."])
+            .await?;
+        Some(crate::git::GitStatus::parse(&out).with_prefix(prefix))
+    }
+}
+
+#[async_trait::async_trait]
+impl GitProbe for SystemGit {
+    async fn status(&self, dir: &Path) -> Option<crate::git::GitStatus> {
+        tokio::time::timeout(self.timeout, self.probe(dir)).await.ok().flatten()
+    }
+}
+
 /// Everything the application needs from the outside world.
 #[derive(Clone)]
 pub struct Services {
@@ -209,6 +270,8 @@ pub struct Services {
     pub runner: Arc<dyn ProcessRunner>,
     pub opener: Arc<dyn Opener>,
     pub clock: Arc<dyn Clock>,
+    // dired-99k
+    pub git: Arc<dyn GitProbe>,
     /// Where history and the journal persist; `None` disables persistence.
     pub state_dir: Option<PathBuf>,
 }

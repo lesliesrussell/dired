@@ -325,6 +325,9 @@ impl App {
                     if d.sort.dirs_first { "" } else { " (mixed)" },
                     if d.show_hidden { "" } else { "  hidden:off" },
                 );
+                if let Some(g) = &d.git {
+                    s.push_str(&format!("  git:{}", g.summary())); // dired-99k
+                }
                 if let Some(w) = &d.wdired {
                     s.push_str(&format!("  WDIRED ({} edited)", w.edits.len()));
                 }
@@ -1012,11 +1015,18 @@ impl App {
                 }
             }
             AppEvent::ScanDone { buf, dir, gen, error } => {
+                let mut root_ok = false;
                 if let Some(d) = self.dir_of(buf) {
                     d.scan_done(&dir, gen, error.clone());
+                    root_ok = error.is_none() && dir.as_os_str().is_empty();
                     if let Some(e) = error {
                         self.error(e);
                     }
+                }
+                // dired-99k: a finished listing of the root (open, revert, after an
+                // operation) is the moment to ask git again.
+                if root_ok {
+                    self.request_git(buf);
                 }
             }
             AppEvent::MetaBatch { buf, dir, gen, metas } => {
@@ -1042,6 +1052,14 @@ impl App {
             AppEvent::ProcLine { buf, line, stderr } => self.proc_line(buf, line, stderr),
             AppEvent::ProcExit { buf, code, error } => self.proc_exit(buf, code, error),
             AppEvent::Completions { gen, items } => self.apply_completions(gen, items),
+            // dired-99k
+            AppEvent::GitReady { buf, gen, status } => {
+                if let Some(d) = self.dir_of(buf) {
+                    if d.git_gen == gen {
+                        d.git = status;
+                    }
+                }
+            }
             // dired-6xv
             AppEvent::FileViewReady { gen, lines } => {
                 if gen == self.view_gen && self.find_buffer(crate::commands::VIEW_BUFFER).is_some() {
@@ -1184,6 +1202,22 @@ impl App {
                 }
             }
         }
+    }
+
+    // dired-99k
+    /// Ask git about directory buffer `buf` in the background; the answer
+    /// arrives as [`AppEvent::GitReady`]. Does nothing when git is disabled.
+    pub(crate) fn request_git(&mut self, buf: BufferId) {
+        let enabled = self.config.git.enabled;
+        let Some(d) = self.dir_of(buf) else { return };
+        d.git_gen += 1;
+        if !enabled {
+            d.git = None;
+            return;
+        }
+        let (gen, root) = (d.git_gen, d.root.clone());
+        let (git, tx) = (self.svc.git.clone(), self.tx.clone());
+        self.spawn(tasks::git_status(git, tx, buf, gen, root));
     }
 
     // dired-s23

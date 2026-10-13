@@ -9,6 +9,7 @@ repository.workspace = true
 publish = false
 
 [dependencies]
+async-trait = { workspace = true }
 dired-config = { path = "../dired-config" }
 dired-domain = { path = "../dired-domain" }
 dired-fs = { path = "../dired-fs", default-features = false }

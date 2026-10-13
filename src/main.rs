@@ -80,6 +80,7 @@ fn main() -> ExitCode {
     };
     let result = rt.block_on(async move {
         let svc = Services {
+            git: Arc::new(dired_app::SystemGit::default()), // dired-99k
             fs: Arc::new(LocalFs),
             trash: Arc::new(SystemTrash),
             runner: Arc::new(LocalRunner),

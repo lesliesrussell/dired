@@ -37,6 +37,8 @@ pub enum AppEvent {
     JumpChecked { path: PathBuf, exists: bool },
     // dired-6xv
     FileViewReady { gen: u64, lines: Vec<TextLine> },
+    // dired-99k
+    GitReady { buf: BufferId, gen: u64, status: Option<crate::git::GitStatus> },
     TaskFinished,
 }
 
@@ -231,6 +233,13 @@ pub async fn complete_path(fs: Arc<dyn FileSystem>, tx: Tx, gen: u64, input: Str
     };
     let items = items.into_iter().map(|n| format!("{head}{n}")).collect();
     let _ = tx.send(AppEvent::Completions { gen, items });
+}
+
+// dired-99k
+/// Ask git about a directory buffer's root.
+pub async fn git_status(git: Arc<dyn crate::services::GitProbe>, tx: Tx, buf: BufferId, gen: u64, root: PathBuf) {
+    let status = git.status(&root).await;
+    let _ = tx.send(AppEvent::GitReady { buf, gen, status });
 }
 
 // dired-6xv

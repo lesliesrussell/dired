@@ -56,7 +56,7 @@ pub struct DisplayConfig {
     pub dirs_first: bool,
     pub sort: String,
     /// Metadata columns in display order; dropped right-to-left priority
-    /// when the terminal is narrow. Known: permissions, size, mtime.
+    /// when the terminal is narrow. Known: git, permissions, size, mtime.
     pub columns: Vec<String>,
     // dired-ta2
     /// Copy/move prompts default to the directory shown in another window.
@@ -73,7 +73,7 @@ impl Default for DisplayConfig {
             show_hidden: true,
             dirs_first: true,
             sort: "name".into(),
-            columns: vec!["permissions".into(), "size".into(), "mtime".into()],
+            columns: vec!["git".into(), "permissions".into(), "size".into(), "mtime".into()], // dired-99k
             dwim_target: true,
             // dired-p2d
             style: "clean".into(),
@@ -274,6 +274,21 @@ impl Default for SearchConfig {
     }
 }
 
+// dired-99k
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct GitConfig {
+    /// Show git state (status column, branch in the mode line). Costs one
+    /// `git` process per directory refresh.
+    pub enabled: bool,
+}
+
+impl Default for GitConfig {
+    fn default() -> Self {
+        GitConfig { enabled: true }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct SafetyConfig {
@@ -306,6 +321,8 @@ pub struct Config {
     pub shell: ShellConfig,
     pub search: SearchConfig,
     pub safety: SafetyConfig,
+    // dired-99k
+    pub git: GitConfig,
 }
 
 fn section<T: DeserializeOwned + Default>(
@@ -402,8 +419,8 @@ impl Config {
             ));
         }
         // dired-0cz
-        const KNOWN: [&str; 9] =
-            ["version", "display", "theme", "keymap", "opener", "open_with", "shell", "search", "safety"];
+        const KNOWN: [&str; 10] =
+            ["version", "display", "theme", "keymap", "opener", "open_with", "shell", "search", "safety", "git"];
         for k in table.keys() {
             if !KNOWN.contains(&k.as_str()) {
                 diags.push(Diagnostic::warning(source, format!("unknown key `{k}`")));
@@ -466,6 +483,7 @@ impl Config {
             shell: section(&table, "shell", source, &mut diags),
             search: section(&table, "search", source, &mut diags),
             safety: section(&table, "safety", source, &mut diags),
+            git: section(&table, "git", source, &mut diags), // dired-99k
         };
         (config, diags)
     }
@@ -632,5 +650,19 @@ key = "C-c p"
             assert_eq!(c.display.style, "rich", "{bad}");
             assert!(c.display.ui.is_empty(), "{bad}");
         }
+    }
+
+    // dired-99k
+    #[test]
+    fn git_section_and_default_columns() {
+        let (c, d) = Config::parse("version = 1\n", "t");
+        assert!(d.is_empty(), "{d:?}");
+        assert!(c.git.enabled);
+        assert_eq!(c.display.columns, ["git", "permissions", "size", "mtime"]);
+        let (c, d) = Config::parse("version = 1\n[git]\nenabled = false\n", "t");
+        assert!(d.is_empty() && !c.git.enabled, "{d:?}");
+        let (c, d) = Config::parse("version = 1\n[git]\nenabeld = false\n", "t");
+        assert_eq!(d.len(), 1, "{d:?}");
+        assert!(c.git.enabled, "a typo falls back to the default");
     }
 }

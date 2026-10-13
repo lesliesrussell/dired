@@ -19,8 +19,10 @@ show_hidden = true               # toggle at runtime with C-x M-o (marks survive
 dirs_first  = true
 sort        = "natural"          # name | natural | time | size | extension  (cycle: s)
 # Metadata columns, left to right. On narrow terminals they collapse
-# (permissions first, then mtime, then size) before names are truncated.
-columns     = ["permissions", "size", "mtime"]
+# (permissions first, then mtime, then size, then git) before names are truncated.
+# "git" is a two-letter status column (as in `git status -s`) that appears only
+# inside a repository; drop it from the list to hide it.
+columns     = ["git", "permissions", "size", "mtime"]
 # With two windows (C-x 3, C-x 4 d), C and R default to the directory shown in
 # the other window, as Emacs's dired-dwim-target does.
 dwim_target = true
@@ -186,6 +188,12 @@ extensions = ["png", "jpg", "jpeg", "pdf"]
 name     = "Neovim"
 command  = ["nvim", "-p", "{files}"]   # all marked files in tabs
 terminal = true
+
+# ── Git ──────────────────────────────────────────────────────────────────────
+# Status letters and the branch in the mode line, from a background
+# `git status` in the current directory (never blocks; abandoned after 10s).
+[git]
+enabled = true
 
 # ── Shell mode ───────────────────────────────────────────────────────────────
 # Only used by M-x dired-do-shell-command-in-shell (opt-in, labeled [SHELL MODE],

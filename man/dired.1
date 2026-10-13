@@ -112,7 +112,13 @@ The name has been edited and not yet committed (Wdired mode).
 .Pp
 These glyphs are configurable, and state is never shown by color alone.
 They are followed by the mode, size, modification time, and name.
-On narrow terminals the mode, time, and size columns are dropped, in
+Inside a git repository a two-letter status column
+(index state, then worktree state, as in
+.Ql git status \-s )
+precedes the mode; directories summarize the changes inside them, and the
+mode line shows the branch, for example
+.Ql git:main*\(ua1 .
+On narrow terminals the mode, time, size, and git columns are dropped, in
 that order, before names are truncated.
 A suffix after the name gives the type:
 .Sq /
@@ -957,10 +963,12 @@ or
 .Qq extension .
 .It Cm columns
 Metadata columns in order, from
+.Qq git ,
 .Qq permissions ,
 .Qq size ,
 and
-.Qq mtime .
+.Qq mtime
+(default: all four; the git column only appears inside a repository).
 .It Cm dwim_target
 Offer the directory in another window as the copy and move destination
 (default true).
@@ -1080,6 +1088,12 @@ and
 and
 .Cm terminal
 (run in the terminal instead of detached).
+.It Cm [git]
+.Cm enabled :
+ask git for status in the background (default true).
+Git runs with
+.Ev GIT_OPTIONAL_LOCKS Ns =0
+and is abandoned after 10 seconds.
 .It Cm [shell]
 .Cm shell :
 the interpreter for shell mode (default

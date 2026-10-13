@@ -67,6 +67,7 @@ enum Col {
     Perms,
     Size,
     Mtime,
+    Git, // dired-99k
 }
 
 impl Col {
@@ -75,6 +76,7 @@ impl Col {
             Col::Perms => 10,
             Col::Size => 6,
             Col::Mtime => 16,
+            Col::Git => 3, // two status letters and a space
         }
     }
 }
@@ -86,6 +88,7 @@ impl Col {
             Col::Perms => "Mode",
             Col::Size => "Size",
             Col::Mtime => "Modified",
+            Col::Git => "Git",
         }
     }
 }
@@ -96,6 +99,7 @@ fn columns(cfg: &[String]) -> Vec<Col> {
             "permissions" | "perms" | "mode" => Some(Col::Perms),
             "size" => Some(Col::Size),
             "mtime" | "time" | "modified" => Some(Col::Mtime),
+            "git" => Some(Col::Git), // dired-99k
             _ => None,
         })
         .collect()
@@ -387,8 +391,11 @@ fn draw_dir(
         .unwrap_or(10)
         .min(40);
     let mut cols: Vec<Col> = cfg_cols.to_vec();
+    if d.git.is_none() {
+        cols.retain(|c| *c != Col::Git); // dired-99k: no column outside a repository
+    }
     let used = |cols: &[Col]| prefix_w + cols.iter().map(|c| c.width() + gap).sum::<usize>() + 1;
-    for drop in [Col::Perms, Col::Mtime, Col::Size] {
+    for drop in [Col::Perms, Col::Mtime, Col::Size, Col::Git] {
         if w >= used(&cols) + longest.max(12) {
             break;
         }
@@ -437,12 +444,22 @@ fn draw_dir(
         ]);
         let meta = e.meta.as_ref();
         for c in &cols {
+            // dired-99k: the status letters, each colored by what it means
+            if *c == Col::Git {
+                let xy = if e.special { None } else { d.git.as_ref().and_then(|g| g.xy_for(&e.key)) };
+                let (x, y) = xy.map(|v| (v.x, v.y)).unwrap_or((' ', ' '));
+                spans.push(Span::styled(x.to_string(), widgets::git_style(theme, x, true)));
+                spans.push(Span::styled(y.to_string(), widgets::git_style(theme, y, false)));
+                spans.push(Span::raw(" ".repeat(c.width() - 2 + gap)));
+                continue;
+            }
             let text = match (c, meta) {
                 (_, None) if e.special => " ".repeat(c.width()),
                 (Col::Perms, Some(m)) => pad_right(&m.permissions_string(), c.width()),
                 (Col::Size, Some(m)) => format!("{:>6}", format_size(m.size)),
                 (Col::Mtime, Some(m)) => pad_right(&format_mtime(m.modified), c.width()),
                 (_, None) => pad_right("…", c.width()),
+                (Col::Git, _) => unreachable!("handled above"), // dired-99k
             };
             // dired-p2d
             let style = match (c, meta, cx.ui.column_colors) {

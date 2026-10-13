@@ -70,6 +70,11 @@ pub struct DirBuffer {
     pub listings: HashMap<PathBuf, Listing>,
     pub states: HashMap<PathBuf, EntryState>,
     pub annotations: HashMap<PathBuf, String>,
+    // dired-99k
+    /// Git state for this directory, once git has answered (and while it is
+    /// inside a repository).
+    pub git: Option<crate::git::GitStatus>,
+    pub(crate) git_gen: u64,
     pub sort: SortSpec,
     pub filter: Option<String>,
     pub show_hidden: bool,
@@ -107,6 +112,8 @@ impl DirBuffer {
             resort: false,
             counts: Counts::default(),
             wdired: None,
+            git: None, // dired-99k
+            git_gen: 0,
             gen_counter: 0,
         }
     }

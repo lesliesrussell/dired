@@ -8,6 +8,7 @@ pub mod buffers;
 mod commands;
 pub mod dirbuf;
 pub mod fileview;
+pub mod git;
 pub mod jumps;
 pub mod keymap;
 pub mod minibuffer;
@@ -20,5 +21,5 @@ pub mod windows;
 
 pub use app::{expand_path, normalize, App};
 pub use commands::parse_rg_json;
-pub use services::{builtin_open_with, Effect, OpenOutcome, OpenRequest, Opener, Services, SystemOpener};
+pub use services::{builtin_open_with, Effect, GitProbe, OpenOutcome, OpenRequest, Opener, Services, SystemGit, SystemOpener};
 pub use tasks::AppEvent;

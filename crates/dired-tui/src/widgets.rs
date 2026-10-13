@@ -87,6 +87,20 @@ pub fn icon_for(g: &dired_config::Glyphs, special: bool, kind: dired_domain::Fil
     }
 }
 
+// dired-99k
+/// Style for one git status letter: conflicts and deletions read as errors,
+/// untracked is dim, staged changes are green, other unstaged changes yellow.
+/// (The letters carry the meaning; color only reinforces it.)
+pub fn git_style(theme: &Theme, letter: char, staged: bool) -> Style {
+    match letter {
+        ' ' => Style::default(),
+        'U' | 'D' => theme.error,
+        '?' => theme.dim,
+        _ if staged => theme.success,
+        _ => theme.warning,
+    }
+}
+
 // dired-p2d
 /// First visible candidate so that `selected` is within `view_rows` rows.
 pub fn popup_window(selected: usize, view_rows: usize) -> usize {
@@ -391,5 +405,20 @@ mod tests {
         // A status that does not start with the name falls back to the first segment.
         let l = segmented_mode_line(&t, "zzz", status, None, None, 80, true, false);
         assert!(text(&l).starts_with(" a "), "{:?}", text(&l));
+    }
+
+    // dired-99k
+    #[test]
+    fn git_letters_are_styled_by_meaning() {
+        let t = nord();
+        assert_eq!(git_style(&t, ' ', true), Style::default());
+        assert_eq!(git_style(&t, 'U', true), t.error);
+        assert_eq!(git_style(&t, 'D', false), t.error);
+        assert_eq!(git_style(&t, 'D', true), t.error);
+        assert_eq!(git_style(&t, '?', false), t.dim);
+        assert_eq!(git_style(&t, 'M', true), t.success);
+        assert_eq!(git_style(&t, 'A', true), t.success);
+        assert_eq!(git_style(&t, 'R', true), t.success);
+        assert_eq!(git_style(&t, 'M', false), t.warning);
     }
 }

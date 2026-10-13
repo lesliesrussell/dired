@@ -99,7 +99,22 @@ Each line starts with up to three state characters:
 
 State is always shown with these characters as well as colors, so it works on monochrome terminals. You can change the characters in your config.
 
-Next come permissions, size, and modification time. On a narrow terminal these columns are hidden (permissions first, then time, then size) before names get cut off.
+Next come permissions, size, and modification time. On a narrow terminal these columns are hidden (permissions first, then time, then size, then the git column) before names get cut off.
+
+**Git state.** Inside a git repository there is a two-letter column before the permissions, exactly like `git status -s`: the first letter is the **staged** state and the second the **unstaged** state.
+
+| Shown | Meaning |
+|---|---|
+| ` M` | modified, not staged |
+| `M ` / `A ` / `D ` / `R ` | staged: modified / added / deleted / renamed |
+| `MM` | staged and then modified again |
+| `??` | untracked |
+| `UU` | merge conflict (every unmerged state shows this way) |
+| (blank) | clean |
+
+A directory summarizes what is inside it: `src/` shows ` M` if any file below it has an unstaged change, and `AM` if something below is staged-new and something else modified. Letters are green when staged, yellow when unstaged, red for deletions and conflicts, and dim for untracked files; the letters carry the meaning, so it reads the same on a monochrome terminal. The mode line of a directory gains a segment `git:main*↑1`: the branch, a `*` if anything has changed, and `↑`/`↓` for commits ahead of or behind the upstream (`git:detached` on a detached HEAD).
+
+dired asks git in the background each time a listing finishes (opening, `g`, after an operation), so the column appears a moment after the files; a slow `git` never delays the screen, and after 10 seconds dired gives up and shows nothing. It runs `git status` limited to the directory you are in, with `GIT_OPTIONAL_LOCKS=0` so it never interferes with your own git commands. Outside a repository, or if `git` is not installed, there is simply no column. Remove `"git"` from `[display] columns`, or set `[git] enabled = false`, to turn it off.
 
 After the name comes a **type indicator**:
 

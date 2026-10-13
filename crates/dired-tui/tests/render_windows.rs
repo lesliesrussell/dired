@@ -11,6 +11,15 @@ use dired_tui::theme::Theme;
 use ratatui::backend::TestBackend;
 use ratatui::Terminal;
 
+struct NoGit;
+
+#[async_trait::async_trait]
+impl dired_app::GitProbe for NoGit {
+    async fn status(&self, _: &std::path::Path) -> Option<dired_app::git::GitStatus> {
+        None
+    }
+}
+
 struct NoOpen;
 impl Opener for NoOpen {
     fn open(&self, _: &OpenRequest) -> Result<OpenOutcome, String> {
@@ -40,6 +49,7 @@ async fn side_by_side_windows_render_with_separator_and_mode_lines() {
         runner: Arc::new(MockRunner::default()),
         opener: Arc::new(NoOpen),
         clock: Arc::new(MockClock::default()),
+        git: Arc::new(NoGit),
         state_dir: None,
     };
     let mut app = App::new(Config::defaults(), vec![], svc);

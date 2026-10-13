@@ -7,12 +7,29 @@ use std::time::Duration;
 
 use dired_app::buffers::{BufferKind, PreviewBuffer};
 use dired_app::dirbuf::DirBuffer;
-use dired_app::{App, AppEvent, OpenOutcome, OpenRequest, Opener, Services};
+use dired_app::git::GitStatus;
+use dired_app::{App, AppEvent, GitProbe, OpenOutcome, OpenRequest, Opener, Services};
 use dired_config::{Config, Diagnostic, OpenWithEntry};
 use dired_domain::EntryState;
 use dired_fs::{FileSystem, LocalFs};
 use dired_testkit::{MockClock, MockFs, MockRunner, MockTrash};
 use tokio::sync::mpsc::UnboundedReceiver;
+
+// dired-99k
+/// Answers every git question with a canned status (or "not a repository").
+#[derive(Default)]
+pub struct MockGit {
+    pub answer: Mutex<Option<GitStatus>>,
+    pub calls: Mutex<Vec<PathBuf>>,
+}
+
+#[async_trait::async_trait]
+impl GitProbe for MockGit {
+    async fn status(&self, dir: &Path) -> Option<GitStatus> {
+        self.calls.lock().unwrap().push(dir.to_path_buf());
+        self.answer.lock().unwrap().clone()
+    }
+}
 
 #[derive(Default)]
 pub struct MockOpener {
@@ -41,6 +58,8 @@ pub struct H {
     pub trash: Arc<MockTrash>,
     // dired-tlu
     pub clock: Arc<MockClock>,
+    // dired-99k
+    pub git: Arc<MockGit>,
 }
 
 pub fn harness(fs: Arc<dyn FileSystem>, trash: Arc<MockTrash>) -> H {
@@ -63,17 +82,19 @@ pub fn harness_state(
     let opener = Arc::new(MockOpener::default());
     let runner = Arc::new(MockRunner::default());
     let clock = Arc::new(MockClock::default());
+    let git = Arc::new(MockGit::default()); // dired-99k
     let svc = Services {
         fs,
         trash: trash.clone(),
         runner: runner.clone(),
         opener: opener.clone(),
         clock: clock.clone(),
+        git: git.clone(),
         state_dir,
     };
     let mut app = App::new(config, diags, svc);
     let rx = app.take_events();
-    H { app, rx, opener, runner, trash, clock }
+    H { app, rx, opener, runner, trash, clock, git }
 }
 
 pub fn mock() -> (Arc<MockFs>, H) {

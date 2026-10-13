@@ -3,7 +3,8 @@
 
 use std::sync::Arc;
 
-use dired_app::{App, AppEvent, OpenOutcome, OpenRequest, Opener, Services};
+use dired_app::git::GitStatus;
+use dired_app::{App, AppEvent, GitProbe, OpenOutcome, OpenRequest, Opener, Services};
 use dired_config::{Config, OpenWithEntry};
 use dired_testkit::{MockClock, MockFs, MockRunner, MockTrash};
 use dired_tui::render::draw;
@@ -12,6 +13,17 @@ use ratatui::backend::TestBackend;
 use ratatui::style::Color;
 use ratatui::Terminal;
 use tokio::sync::mpsc::UnboundedReceiver;
+
+// dired-99k
+/// Answers every git question with a canned status.
+pub struct MockGit(pub Option<GitStatus>);
+
+#[async_trait::async_trait]
+impl GitProbe for MockGit {
+    async fn status(&self, _: &std::path::Path) -> Option<GitStatus> {
+        self.0.clone()
+    }
+}
 
 pub struct NoOpen;
 
@@ -52,12 +64,26 @@ pub struct Ui {
 
 impl Ui {
     pub async fn open(fs: Arc<MockFs>, config: Config, w: u16, h: u16, dir: &str) -> Ui {
+        Ui::open_with_git(fs, config, w, h, dir, None).await
+    }
+
+    // dired-99k
+    /// Like [`Ui::open`], with git answering `git` for every directory.
+    pub async fn open_with_git(
+        fs: Arc<MockFs>,
+        config: Config,
+        w: u16,
+        h: u16,
+        dir: &str,
+        git: Option<GitStatus>,
+    ) -> Ui {
         let svc = Services {
             fs: fs.clone(),
             trash: Arc::new(MockTrash::default()),
             runner: Arc::new(MockRunner::default()),
             opener: Arc::new(NoOpen),
             clock: Arc::new(MockClock::default()),
+            git: Arc::new(MockGit(git)),
             state_dir: None,
         };
         let mut app = App::new(config.clone(), vec![], svc);
