@@ -4,6 +4,10 @@
 
 pub mod keys;
 
+// dired-p2d
+mod ui;
+pub use ui::{ModeLine, UiOptions, UiOverrides, UiStyle, STYLES};
+
 use std::path::{Path, PathBuf};
 
 use serde::de::DeserializeOwned;
@@ -57,6 +61,10 @@ pub struct DisplayConfig {
     // dired-ta2
     /// Copy/move prompts default to the directory shown in another window.
     pub dwim_target: bool,
+    // dired-p2d
+    /// One of [`STYLES`].
+    pub style: String,
+    pub ui: UiOverrides,
 }
 
 impl Default for DisplayConfig {
@@ -67,6 +75,9 @@ impl Default for DisplayConfig {
             sort: "name".into(),
             columns: vec!["permissions".into(), "size".into(), "mtime".into()],
             dwim_target: true,
+            // dired-p2d
+            style: "clean".into(),
+            ui: UiOverrides::default(),
         }
     }
 }
@@ -79,6 +90,13 @@ pub struct Glyphs {
     pub error: String,
     pub changed: String,
     pub focused: String,
+    // dired-p2d
+    /// File-type icons (Nerd Font by default; set ASCII if your font lacks them).
+    pub icon_dir: String,
+    pub icon_file: String,
+    pub icon_symlink: String,
+    pub icon_exec: String,
+    pub icon_special: String,
 }
 
 impl Default for Glyphs {
@@ -89,6 +107,12 @@ impl Default for Glyphs {
             error: "!".into(),
             changed: "~".into(),
             focused: ">".into(),
+            // dired-p2d
+            icon_dir: "\u{f07b}".into(),
+            icon_file: "\u{f016}".into(),
+            icon_symlink: "\u{f0c1}".into(),
+            icon_exec: "\u{f013}".into(),
+            icon_special: "\u{f059}".into(),
         }
     }
 }
@@ -325,6 +349,26 @@ fn list<T: DeserializeOwned>(
     }
 }
 
+// dired-p2d
+fn validate_display(d: &mut DisplayConfig, source: &str, diags: &mut Vec<Diagnostic>) {
+    if UiStyle::parse(&d.style).is_none() {
+        diags.push(Diagnostic::error(
+            source,
+            format!("display.style `{}` is not one of {}", d.style, STYLES.join(", ")),
+        ));
+        d.style = DisplayConfig::default().style;
+    }
+    if let Some(m) = &d.ui.mode_line {
+        if ModeLine::parse(m).is_none() {
+            diags.push(Diagnostic::error(
+                source,
+                format!("display.ui.mode_line `{m}` must be `segmented` or `plain`"),
+            ));
+            d.ui.mode_line = None;
+        }
+    }
+}
+
 impl Config {
     pub fn defaults() -> Self {
         Config { version: CONFIG_VERSION, ..Default::default() }
@@ -394,11 +438,14 @@ impl Config {
                 ok
             })
             .collect();
+        // dired-p2d
+        let mut display: DisplayConfig = section(&table, "display", source, &mut diags);
+        validate_display(&mut display, source, &mut diags);
         let theme: ThemeConfig = section(&table, "theme", source, &mut diags);
         validate_theme(&theme, source, &mut diags);
         let config = Config {
             version,
-            display: section(&table, "display", source, &mut diags),
+            display,
             theme,
             keymap,
             opener: list(&table, "opener", source, &mut diags),
@@ -520,5 +567,31 @@ key = "C-c p"
         assert_eq!(d.len(), 3, "{d:?}");
         let (_, d) = Config::parse("version = [", "t");
         assert_eq!(d.len(), 1);
+    }
+
+    // dired-p2d
+    #[test]
+    fn display_style_defaults_and_validation() {
+        let (c, d) = Config::parse("version = 1\n", "t");
+        assert_eq!(c.display.style, "clean");
+        assert!(d.is_empty(), "{d:?}");
+        assert!(c.display.ui.is_empty());
+
+        let (c, d) = Config::parse(
+            "version = 1\n[display]\nstyle = \"glam\"\n[display.ui]\nmode_line = \"fancy\"\nborders = true\n",
+            "t",
+        );
+        assert_eq!(d.len(), 2, "{d:?}");
+        assert_eq!(c.display.style, "clean");
+        assert_eq!(c.display.ui.mode_line, None);
+        assert_eq!(c.display.ui.borders, Some(true));
+
+        let (_, d) = Config::parse("version = 1\n[display.ui]\nbogus = 1\n", "t");
+        assert_eq!(d.len(), 1, "{d:?}");
+
+        let (c, d) = Config::parse("version = 1\n[theme.glyphs]\nicon_dir = \"D\"\n", "t");
+        assert!(d.is_empty(), "{d:?}");
+        assert_eq!(c.theme.glyphs.icon_dir, "D");
+        assert_eq!(c.theme.glyphs.icon_file, Glyphs::default().icon_file);
     }
 }
