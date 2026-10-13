@@ -270,6 +270,33 @@ Unmark entries whose names match a regular expression
 .It Cm % d
 Flag entries whose names match a regular expression
 .Pq Ic dired\-flag\-files\-regexp .
+.It Cm % M , Cm % D , Cm % U
+Mark, flag for deletion, or unmark entries satisfying a condition
+.Pq Ic dired\-mark\-files\-where , dired\-flag\-files\-where , dired\-unmark\-files\-where .
+A condition is one or more space-separated terms that must all hold:
+.Cm size
+.Ar op Ar n
+(units B K M G T),
+.Cm age
+.Ar op Ar n
+(units s m h d w y; time since modification),
+.Cm type Ns = Ns Ar file|dir|link|exec ,
+.Cm ext Ns = Ns Ar a,b ,
+and
+.Cm name Ns ~ Ns Ar regexp .
+Operators are
+.Li > ,
+.Li < ,
+.Li >= ,
+.Li <= ,
+.Li =
+and
+.Li != .
+For example
+.Li type=file ext=log age>30d .
+Directories never match
+.Cm size
+terms; entries whose metadata has not loaded yet are skipped and counted.
 .El
 .Pp
 The

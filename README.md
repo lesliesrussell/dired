@@ -214,6 +214,7 @@ So to copy one file, put point on it and press `C`. To copy ten files, mark them
 | `% u` | Unmark files whose names match a pattern |
 | `d` | Flag the file at point for deletion and move down |
 | `% d` | Flag files whose names match a pattern |
+| `% M` `% D` `% U` | Mark / flag / unmark files by **condition**: size, age, type, extension (section 6) |
 
 A line has exactly one state: unmarked, marked (`*`), or flagged (`D`). Marking a flagged line replaces the `D` with `*`, and flagging a marked line replaces the `*` with `D`.
 
@@ -306,6 +307,29 @@ Typing `*.txt` into `% m` shows an error (`*` with nothing before it) and marks 
 | Log files numbered 1–9 | `^app\.log\.[1-9]$` |
 | Everything | `.` |
 | Everything except Markdown | mark all with `.`, then `% u` with `\.md$` |
+
+### Marking by size, age, type or extension (`% M` `% D` `% U`)
+
+`% M` marks, `% D` flags for deletion and `% U` unmarks the files that satisfy a **condition**. The condition is one or more terms separated by spaces, and **all** of them must hold:
+
+| Term | Meaning | Examples |
+|---|---|---|
+| `size` *op* *n* | File size. Units `B K M G T` (powers of 1024, case-insensitive); decimals are allowed. Directories never match | `size>10M`, `size=0`, `size<=1.5K` |
+| `age` *op* *n* | Time since the file was last modified. A unit is required: `s m h d w y` (a year is 365 days) | `age>30d`, `age<2h` |
+| `type` `=` / `!=` | `file`, `dir` (a real directory), `link`, or `exec` (an executable file) | `type=file`, `type!=dir` |
+| `ext` `=` / `!=` | One or more extensions, comma-separated, case-insensitive | `ext=log,tmp` |
+| `name~` *regexp* | A regular expression on the name (see below); it cannot contain spaces | `name~\.bak$` |
+
+Operators are `>` `<` `>=` `<=` `=` `!=`. Some combinations that earn their keep:
+
+| Goal | Condition |
+|---|---|
+| Flag old logs for deletion | `% D` `type=file ext=log age>30d` |
+| Mark everything big | `% M` `size>100M` |
+| Find empty files | `% M` `size=0 type=file` |
+| Unmark the Markdown files in a selection | `% U` `ext=md` |
+
+They follow the same rules as the regexp commands: only visible entries are considered, `..` is never touched, existing marks are kept, and a mistake such as `size>10Q` shows which term is wrong (`bad term 'size>10Q': unknown size unit 'Q'`) and changes nothing. Entries whose size or time has not loaded yet are skipped, and the echo area says how many (`(3 still loading)`); run the command again once the listing has settled.
 
 ### Step-by-step example
 
@@ -719,6 +743,7 @@ Undo is best-effort. If files changed in the meantime, some steps may fail, and 
 | `RET` `f` `e` | `dired-visit` | Open directory / visit file |
 | `O` | `dired-open-with` | Choose a program to open the marked files (else the file at point) |
 | `w` / `W` | `dired-copy-name` / `dired-copy-path` | Copy names / full paths of the marked entries (else point) to the clipboard |
+| `% M` / `% D` / `% U` | `dired-mark-files-where` / `dired-flag-files-where` / `dired-unmark-files-where` | Mark / flag / unmark by size, age, type, extension or name |
 | `^` | `dired-up-directory` | Parent directory |
 | `o` | `dired-find-file-other-window` | Open in the other window |
 | `g` | `revert-buffer` | Reload, keeping point and marks |

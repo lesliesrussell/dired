@@ -140,6 +140,16 @@ impl App {
             "dired-mark-files-regexp" => self.open_prompt("Mark files (regexp): ", "", PromptAction::MarkRegexp(EntryState::Marked)),
             "dired-flag-files-regexp" => self.open_prompt("Flag for deletion (regexp): ", "", PromptAction::MarkRegexp(EntryState::DeleteFlagged)),
             "dired-unmark-files-regexp" => self.open_prompt("Unmark files (regexp): ", "", PromptAction::MarkRegexp(EntryState::Unmarked)),
+            // dired-tlu
+            "dired-mark-files-where" => {
+                self.open_prompt("Mark files where: ", "", PromptAction::MarkWhere(EntryState::Marked))
+            }
+            "dired-flag-files-where" => {
+                self.open_prompt("Flag for deletion where: ", "", PromptAction::MarkWhere(EntryState::DeleteFlagged))
+            }
+            "dired-unmark-files-where" => {
+                self.open_prompt("Unmark files where: ", "", PromptAction::MarkWhere(EntryState::Unmarked))
+            }
             "dired-do-rename-regexp" => {
                 if self.capture_operands() {
                     self.open_prompt("Rename from (regexp): ", "", PromptAction::RenameRegexpFrom)
@@ -432,6 +442,7 @@ impl App {
                 }
             }
             PromptAction::MarkRegexp(state) => self.mark_regexp(&input, state),
+            PromptAction::MarkWhere(state) => self.mark_where(&input, state), // dired-tlu
             PromptAction::RenameRegexpFrom => match regex::Regex::new(&input) {
                 Ok(_) => self.open_prompt(format!("Rename {input} to: "), "", PromptAction::RenameRegexpTo(input)),
                 Err(e) => self.error(format!("invalid regexp: {e}")),
@@ -540,6 +551,34 @@ impl App {
             EntryState::Unmarked => "unmarked",
         };
         self.message(format!("{n} matching file(s) {verb}"));
+    }
+
+    // dired-tlu
+    fn mark_where(&mut self, expr: &str, state: EntryState) {
+        let pred = match dired_domain::Predicate::parse(expr) {
+            Ok(p) => p,
+            Err(e) => return self.error(e),
+        };
+        let now = self.svc.clock.now();
+        let d = self.dir().unwrap();
+        let (mut n, mut loading) = (0, 0);
+        for e in d.visible_entries() {
+            match pred.matches(&e, now) {
+                Some(true) => {
+                    d.set_state(&e.key, state);
+                    n += 1;
+                }
+                Some(false) => {}
+                None => loading += 1,
+            }
+        }
+        let verb = match state {
+            EntryState::Marked => "marked",
+            EntryState::DeleteFlagged => "flagged for deletion",
+            EntryState::Unmarked => "unmarked",
+        };
+        let pending = if loading > 0 { format!(" ({loading} still loading)") } else { String::new() };
+        self.message(format!("{n} matching file(s) {verb}{pending}"));
     }
 
     fn goto_file(&mut self, q: &str) {

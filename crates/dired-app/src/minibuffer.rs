@@ -68,6 +68,8 @@ pub enum PromptAction {
     LoadTheme,
     // dired-5xb
     LoadStyle,
+    // dired-tlu
+    MarkWhere(EntryState),
 }
 
 impl PromptAction {
@@ -92,6 +94,7 @@ impl PromptAction {
             PromptAction::OpenWith { .. } => "open-with",
             PromptAction::LoadTheme => "theme", // dired-2hn
             PromptAction::LoadStyle => "style", // dired-5xb
+            PromptAction::MarkWhere(_) => "predicate", // dired-tlu
             PromptAction::Isearch { .. } => "isearch",
             PromptAction::ConfirmShell { .. }
             | PromptAction::ConfirmKill(_)

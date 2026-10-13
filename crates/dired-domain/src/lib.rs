@@ -6,6 +6,7 @@ pub mod clock;
 pub mod entry;
 pub mod journal;
 pub mod plan;
+pub mod predicate;
 pub mod shell;
 pub mod sort;
 
@@ -14,4 +15,5 @@ pub use entry::{
     FileKind,
 };
 pub use plan::*;
+pub use predicate::Predicate;
 pub use sort::{natural_cmp, SortKey, SortSpec};

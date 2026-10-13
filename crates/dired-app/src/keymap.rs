@@ -146,6 +146,10 @@ const DEFAULTS: &[(Mode, &str, &str)] = &[
     (Mode::Dired, "% m", "dired-mark-files-regexp"),
     (Mode::Dired, "% d", "dired-flag-files-regexp"),
     (Mode::Dired, "% u", "dired-unmark-files-regexp"),
+    // dired-tlu
+    (Mode::Dired, "% M", "dired-mark-files-where"),
+    (Mode::Dired, "% D", "dired-flag-files-where"),
+    (Mode::Dired, "% U", "dired-unmark-files-where"),
     (Mode::Dired, "% r", "dired-do-rename-regexp"),
     (Mode::Dired, "% R", "dired-do-rename-regexp"),
     (Mode::Dired, "A", "dired-search-files-content"),

@@ -54,6 +54,9 @@ cmds! {
     "dired-do-shell-command-in-shell" [] "Run a command through the shell (opt-in; files passed as \"$@\").";
     "dired-maybe-insert-subdir" [] "Insert the directory at point as an indented subtree.";
     "dired-hide-subdir" [] "Collapse the inserted subtree at or containing point.";
+    "dired-mark-files-where" [] "Mark files matching a condition such as size>10M age>30d ext=log.";
+    "dired-flag-files-where" [] "Flag files matching a condition for deletion.";
+    "dired-unmark-files-where" [] "Unmark files matching a condition.";
     "dired-mark-files-regexp" [] "Mark visible entries whose names match a regexp.";
     "dired-flag-files-regexp" [] "Flag visible entries whose names match a regexp for deletion.";
     "dired-unmark-files-regexp" [] "Unmark visible entries whose names match a regexp.";

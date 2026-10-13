@@ -39,6 +39,8 @@ pub struct H {
     pub opener: Arc<MockOpener>,
     pub runner: Arc<MockRunner>,
     pub trash: Arc<MockTrash>,
+    // dired-tlu
+    pub clock: Arc<MockClock>,
 }
 
 pub fn harness(fs: Arc<dyn FileSystem>, trash: Arc<MockTrash>) -> H {
@@ -48,17 +50,18 @@ pub fn harness(fs: Arc<dyn FileSystem>, trash: Arc<MockTrash>) -> H {
 pub fn harness_with(fs: Arc<dyn FileSystem>, trash: Arc<MockTrash>, config: Config, diags: Vec<Diagnostic>) -> H {
     let opener = Arc::new(MockOpener::default());
     let runner = Arc::new(MockRunner::default());
+    let clock = Arc::new(MockClock::default());
     let svc = Services {
         fs,
         trash: trash.clone(),
         runner: runner.clone(),
         opener: opener.clone(),
-        clock: Arc::new(MockClock::default()),
+        clock: clock.clone(),
         state_dir: None,
     };
     let mut app = App::new(config, diags, svc);
     let rx = app.take_events();
-    H { app, rx, opener, runner, trash }
+    H { app, rx, opener, runner, trash, clock }
 }
 
 pub fn mock() -> (Arc<MockFs>, H) {
