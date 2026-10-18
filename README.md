@@ -202,6 +202,17 @@ Search ignores case unless you type an uppercase letter ("smart case"). If nothi
 2. Otherwise `$VISUAL` or `$EDITOR`, run inside the terminal. dired steps aside while the editor runs and comes back when you quit it.
 3. Otherwise the system opener: `open` on macOS, `xdg-open` on Linux.
 
+**Open in the default desktop application with Enter (`RET`, `f`, or `e`).** To always launch the file at point in its associated application (for example, a PDF viewer or image viewer), add this rule to `~/.config/dired/config.toml` **before any other `[[opener]]` rules**:
+
+```toml
+[[opener]]
+extensions = []                  # match every file type
+command = ["xdg-open", "{file}"] # Linux; use ["open", "{file}"] on macOS
+terminal = false
+```
+
+This rule takes precedence over `$VISUAL` / `$EDITOR`. Restart dired after saving the config, then press Enter on a file. Enter on a directory still opens it as a dired buffer. On Linux, `xdg-open` must be installed and a desktop session available.
+
 **Open with (`O`)** asks which program to use on the marked files (or the file at point when nothing is marked), instead of the automatic choice above. The prompt completes over a list of candidates: type a few letters (`neo` finds `Neovim`), `TAB` or `RET` takes the best match. Candidates are your `[[open_with]]` entries, followed by two built-ins: **System default** (`open` / `xdg-open`) and **$EDITOR** (when `$VISUAL` or `$EDITOR` is set). Add your own in the config file:
 
 ```toml
