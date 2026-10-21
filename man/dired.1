@@ -227,6 +227,21 @@ and
 .Dq $EDITOR ;
 see
 .Sx OPENERS .
+.It Cm C\-c t
+Open a new terminal window in the directory of the buffer
+.Pq Ic dired\-open\-terminal .
+The command comes from
+.Cm [terminal] ;
+see
+.Sx CONFIGURATION .
+.It Cm C\-c s
+Suspend the interface and run
+.Ev SHELL
+(else
+.Pa /bin/sh )
+in the directory of the buffer
+.Pq Ic dired\-shell\-here .
+Exit the shell to return.
 .It Cm J
 Pick a bookmark or a frequently used directory and open it
 .Pq Ic jump\-to\-directory .
@@ -1103,6 +1118,16 @@ ask git for status in the background (default true).
 Git runs with
 .Ev GIT_OPTIONAL_LOCKS Ns =0
 and is abandoned after 10 seconds.
+.It Cm [terminal]
+.Cm command :
+argument vector that opens a terminal window for
+.Ic dired\-open\-terminal ;
+.Ql {dir}
+is replaced by the directory, and the program starts there.
+Empty (the default) uses Terminal.app on macOS, else
+.Ev TERMINAL
+or
+.Xr x-terminal-emulator 1 .
 .It Cm [shell]
 .Cm shell :
 the interpreter for shell mode (default

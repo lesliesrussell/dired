@@ -84,7 +84,7 @@ fn main() -> ExitCode {
             fs: Arc::new(LocalFs),
             trash: Arc::new(SystemTrash),
             runner: Arc::new(LocalRunner),
-            opener: Arc::new(SystemOpener { rules: config.opener.clone() }),
+            opener: Arc::new(SystemOpener { rules: config.opener.clone(), terminal: config.terminal.command.clone() }),
             clock: Arc::new(SystemClock),
             state_dir: dired_config::state_dir(),
         };

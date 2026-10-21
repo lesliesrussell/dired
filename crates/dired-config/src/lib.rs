@@ -289,6 +289,15 @@ impl Default for GitConfig {
     }
 }
 
+// dired-z5y
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct TerminalConfig {
+    /// argv for "open terminal here" (`C-c t`); `{dir}` is the directory. The
+    /// program also starts in that directory. Empty uses the platform default.
+    pub command: Vec<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct SafetyConfig {
@@ -323,6 +332,8 @@ pub struct Config {
     pub safety: SafetyConfig,
     // dired-99k
     pub git: GitConfig,
+    // dired-z5y
+    pub terminal: TerminalConfig,
 }
 
 fn section<T: DeserializeOwned + Default>(
@@ -419,8 +430,11 @@ impl Config {
             ));
         }
         // dired-0cz
-        const KNOWN: [&str; 10] =
-            ["version", "display", "theme", "keymap", "opener", "open_with", "shell", "search", "safety", "git"];
+        // dired-z5y
+        const KNOWN: [&str; 11] = [
+            "version", "display", "theme", "keymap", "opener", "open_with", "shell", "search", "safety", "git",
+            "terminal",
+        ];
         for k in table.keys() {
             if !KNOWN.contains(&k.as_str()) {
                 diags.push(Diagnostic::warning(source, format!("unknown key `{k}`")));
@@ -484,6 +498,7 @@ impl Config {
             search: section(&table, "search", source, &mut diags),
             safety: section(&table, "safety", source, &mut diags),
             git: section(&table, "git", source, &mut diags), // dired-99k
+            terminal: section(&table, "terminal", source, &mut diags), // dired-z5y
         };
         (config, diags)
     }
@@ -534,6 +549,25 @@ mod tests {
         let (c, d) = Config::parse(include_str!("../../../examples/config.toml"), "examples/config.toml");
         assert!(d.is_empty(), "{d:?}");
         assert!(!c.keymap.is_empty() && !c.theme.styles.is_empty());
+    }
+
+    // dired-z5y
+    #[test]
+    fn terminal_section_defaults_to_the_platform_launcher() {
+        let (c, d) = Config::parse("version = 1\n", "t");
+        assert!(d.is_empty(), "{d:?}");
+        assert!(c.terminal.command.is_empty());
+    }
+
+    // dired-z5y
+    #[test]
+    fn terminal_command_parses() {
+        let (c, d) = Config::parse("version = 1\n[terminal]\ncommand = [\"kitty\", \"--directory\", \"{dir}\"]\n", "t");
+        assert!(d.is_empty(), "{d:?}");
+        assert_eq!(c.terminal.command, ["kitty", "--directory", "{dir}"]);
+        let (c, d) = Config::parse("version = 1\n[terminal]\ncommand = 3\n", "t");
+        assert!(c.terminal.command.is_empty());
+        assert_eq!(d.len(), 1, "{d:?}");
     }
 
     // dired-0cz

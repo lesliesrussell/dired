@@ -5,6 +5,11 @@ All notable changes are listed here, newest first. The format follows
 [Semantic Versioning](https://semver.org/). Entries mention the issue (bead) they
 came from.
 
+## [Unreleased]
+
+### Added
+- Open a terminal from a directory buffer (dired-z5y): `C-c t` opens a new terminal window there (configurable with `[terminal] command`, `{dir}` is the directory), and `C-c s` suspends dired and runs `$SHELL` in place.
+
 ## [0.1.0] - 2026-10-13
 
 First release.

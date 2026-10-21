@@ -177,6 +177,8 @@ Search ignores case unless you type an uppercase letter ("smart case"). If nothi
 | `RET` `f` `e` | Visit the entry at point |
 | `^` | Go to the parent directory (point lands on the directory you came from) |
 | `O` | **Open with…**: pick a program for the marked files, else the file at point (see below) |
+| `C-c t` | **Open terminal here**: a new terminal window in this directory (see below) |
+| `C-c s` | **Shell here**: suspend dired and run `$SHELL` in this directory; `exit` returns |
 | `o` | Open the directory at point in the **other window** (section 17); files open as with `RET` |
 | `C-x d` | Ask for a directory path and open it |
 | `C-x C-f` | Ask for any path: directories open in dired, files are visited |
@@ -230,6 +232,16 @@ terminal = true                              # suspend dired while it runs
 A candidate with `extensions` is only offered when **every** selected file has one of those extensions (case-insensitive).
 
 With several files selected, `{files}` in a command expands to all of them and the program runs **once** (`["nvim", "-p", "{files}"]`); a command that only has `{file}` runs **once per file**, one after another for terminal programs. The built-in **$EDITOR** uses `{files}`; **System default** runs once per file. Arguments are passed as argv, never through a shell. Rebind the key with `command = "dired-open-with"` in a `[[keymap]]` entry.
+
+**Terminals (`C-c t`, `C-c s`).** `C-c t` opens a new terminal window whose shell starts in the directory of the current buffer. By default that is Terminal.app on macOS and `$TERMINAL` (else `x-terminal-emulator`) on Linux. To use another terminal, set the command in the config; `{dir}` is the directory, and the program also starts there:
+
+```toml
+[terminal]
+command = ["open", "-a", "iTerm", "{dir}"]      # macOS
+# command = ["kitty", "--directory", "{dir}"]   # anywhere
+```
+
+`C-c s` does not open a window: it suspends dired and runs `$SHELL` (else `/bin/sh`) right in the terminal you are using, so it also works over ssh. Type `exit` to come back; the listing is refreshed.
 
 **`g` (refresh)** re-reads the directory in the background. Point stays on the same *file*, even if new files now appear above it. Marks and flags on files that still exist are kept.
 
@@ -647,6 +659,8 @@ As in Emacs, the screen can be divided into **windows**, each showing a buffer. 
 | `C-x 4 f` `C-x 4 C-f` | `find-file-other-window` | Open any path in the other window |
 | `C-x 4 b` | `switch-to-buffer-other-window` | Show a buffer in the other window |
 | `o` | `dired-find-file-other-window` | In a directory buffer: open the directory at point (or `..`) in the other window |
+| `C-c t` | `dired-open-terminal` | Open a new terminal window in this directory |
+| `C-c s` | `dired-shell-here` | Suspend dired and run `$SHELL` in this directory |
 | `v` | `split-window-to-file-view` | In a directory buffer: show the file at point in a read-only view window (below) |
 | `C-M-v` / `C-M-b` | `scroll-other-window` / `scroll-other-window-down` | Scroll the other window forward / back one page without leaving this one |
 

@@ -21,5 +21,5 @@ pub mod windows;
 
 pub use app::{expand_path, normalize, App};
 pub use commands::parse_rg_json;
-pub use services::{builtin_open_with, Effect, GitProbe, OpenOutcome, OpenRequest, Opener, Services, SystemGit, SystemOpener};
+pub use services::{builtin_open_with, terminal_argv, Effect, GitProbe, OpenOutcome, OpenRequest, Opener, Services, SystemGit, SystemOpener};
 pub use tasks::AppEvent;

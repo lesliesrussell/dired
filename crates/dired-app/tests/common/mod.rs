@@ -36,6 +36,9 @@ pub struct MockOpener {
     pub opened: Mutex<Vec<OpenRequest>>,
     // dired-0cz
     pub opened_with: Mutex<Vec<(String, Vec<std::path::PathBuf>)>>,
+    // dired-z5y
+    pub terminals: Mutex<Vec<std::path::PathBuf>>,
+    pub terminal_error: Mutex<Option<String>>,
 }
 
 impl Opener for MockOpener {
@@ -47,6 +50,18 @@ impl Opener for MockOpener {
     fn open_with(&self, entry: &OpenWithEntry, paths: &[std::path::PathBuf]) -> Vec<Result<OpenOutcome, String>> {
         self.opened_with.lock().unwrap().push((entry.name.clone(), paths.to_vec()));
         vec![Ok(OpenOutcome::Detached(entry.name.clone()))]
+    }
+    // dired-z5y
+    fn open_terminal(&self, dir: &std::path::Path) -> Result<OpenOutcome, String> {
+        if let Some(e) = self.terminal_error.lock().unwrap().clone() {
+            return Err(e);
+        }
+        self.terminals.lock().unwrap().push(dir.to_path_buf());
+        Ok(OpenOutcome::Detached("mock-terminal".into()))
+    }
+    // dired-z5y
+    fn open_shell(&self, dir: &std::path::Path) -> Result<OpenOutcome, String> {
+        Ok(OpenOutcome::Foreground(dired_process::ProcessSpec::new("mock-shell", vec![], dir.to_path_buf())))
     }
 }
 

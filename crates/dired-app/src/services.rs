@@ -31,6 +31,45 @@ pub trait Opener: Send + Sync {
     /// result per launch: `{files}` commands launch once, `{file}` commands
     /// once per path, and one failed launch does not stop the others.
     fn open_with(&self, entry: &OpenWithEntry, paths: &[PathBuf]) -> Vec<Result<OpenOutcome, String>>;
+    // dired-z5y
+    /// A new terminal window whose shell starts in `dir`.
+    fn open_terminal(&self, _dir: &Path) -> Result<OpenOutcome, String> {
+        Err("opening a terminal is not supported here".into())
+    }
+    // dired-z5y
+    /// The user's shell, run in the terminal dired is in (the UI is suspended).
+    fn open_shell(&self, _dir: &Path) -> Result<OpenOutcome, String> {
+        Err("running a shell is not supported here".into())
+    }
+}
+
+// dired-z5y
+/// The argv that opens a terminal window for `dir`: `configured` with `{dir}`
+/// filled in, else the platform default. The launcher is also run with `dir`
+/// as its working directory, which most emulators inherit.
+pub fn terminal_argv(configured: &[String], dir: &Path) -> Vec<OsString> {
+    let default: Vec<String> = if !configured.is_empty() {
+        configured.to_vec()
+    } else if cfg!(target_os = "macos") {
+        vec!["open".into(), "-a".into(), "Terminal".into(), "{dir}".into()]
+    } else {
+        let term = std::env::var("TERMINAL").ok().filter(|t| !t.trim().is_empty());
+        term.and_then(|t| shlex::split(&t))
+            .filter(|w| !w.is_empty())
+            .unwrap_or_else(|| vec!["x-terminal-emulator".into()])
+    };
+    default
+        .iter()
+        .map(|a| match a.split_once("{dir}") {
+            None => OsString::from(a),
+            Some((pre, post)) => {
+                let mut s = OsString::from(pre);
+                s.push(dir.as_os_str());
+                s.push(post);
+                s
+            }
+        })
+        .collect()
 }
 
 // dired-0cz
@@ -103,6 +142,9 @@ fn run_command(command: &[String], terminal: bool, req: &OpenRequest) -> Result<
 /// platform opener.
 pub struct SystemOpener {
     pub rules: Vec<OpenerRule>,
+    // dired-z5y
+    /// `[terminal] command`; empty means the platform default.
+    pub terminal: Vec<String>,
 }
 
 fn expand(argv: &[String], req: &OpenRequest) -> Vec<OsString> {
@@ -198,6 +240,20 @@ impl Opener for SystemOpener {
                 Ok(OpenOutcome::Detached(entry.command.join(" ")))
             })
             .collect()
+    }
+
+    // dired-z5y
+    fn open_terminal(&self, dir: &Path) -> Result<OpenOutcome, String> {
+        let argv = terminal_argv(&self.terminal, dir);
+        let how = argv.first().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default();
+        spawn_detached(argv, dir)?;
+        Ok(OpenOutcome::Detached(how))
+    }
+
+    // dired-z5y
+    fn open_shell(&self, dir: &Path) -> Result<OpenOutcome, String> {
+        let shell = std::env::var_os("SHELL").filter(|s| !s.is_empty()).unwrap_or_else(|| "/bin/sh".into());
+        Ok(OpenOutcome::Foreground(ProcessSpec::new(shell, vec![], dir.to_path_buf())))
     }
 }
 
@@ -323,7 +379,7 @@ mod tests {
     #[test]
     fn terminal_commands_become_ordered_foreground_specs() {
         let e = OpenWithEntry { name: "Ed".into(), extensions: vec![], command: cmd(&["ed", "{file}"]), terminal: true };
-        let out = SystemOpener { rules: vec![] }.open_with(&e, &paths(&["/w/a", "/w/b"]));
+        let out = SystemOpener { rules: vec![], terminal: vec![] }.open_with(&e, &paths(&["/w/a", "/w/b"]));
         let specs: Vec<_> = out
             .into_iter()
             .map(|r| match r.unwrap() {
@@ -335,7 +391,7 @@ mod tests {
         assert_eq!(specs[0], ("ed".into(), vec![OsString::from("/w/a")], PathBuf::from("/w")));
         assert_eq!(specs[1], ("ed".into(), vec![OsString::from("/w/b")], PathBuf::from("/w")));
         let e = OpenWithEntry { command: cmd(&["ed", "{files}"]), ..e };
-        let out = SystemOpener { rules: vec![] }.open_with(&e, &paths(&["/w/a", "/w/b"]));
+        let out = SystemOpener { rules: vec![], terminal: vec![] }.open_with(&e, &paths(&["/w/a", "/w/b"]));
         assert_eq!(out.len(), 1);
     }
 
@@ -350,9 +406,42 @@ mod tests {
             command: cmd(&["/bin/sh", "-c", "exit 0", "sh", "{file}"]),
             terminal: false,
         };
-        let out = SystemOpener { rules: vec![] }.open_with(&e, &[bad, good]);
+        let out = SystemOpener { rules: vec![], terminal: vec![] }.open_with(&e, &[bad, good]);
         assert_eq!(out.len(), 2);
         assert!(out[0].is_err(), "{:?}", out[0]);
         assert!(out[1].is_ok(), "{:?}", out[1]);
+    }
+}
+
+// dired-z5y
+#[cfg(test)]
+mod terminal_tests {
+    use super::*;
+
+    fn s(v: &[OsString]) -> Vec<String> {
+        v.iter().map(|a| a.to_string_lossy().into_owned()).collect()
+    }
+
+    #[test]
+    fn configured_command_gets_the_directory() {
+        let cmd: Vec<String> = ["kitty", "--directory", "{dir}"].map(String::from).into();
+        assert_eq!(s(&terminal_argv(&cmd, Path::new("/w/a b"))), ["kitty", "--directory", "/w/a b"]);
+    }
+
+    #[test]
+    fn directory_may_sit_inside_an_argument() {
+        let cmd: Vec<String> = ["gnome-terminal", "--working-directory={dir}"].map(String::from).into();
+        assert_eq!(s(&terminal_argv(&cmd, Path::new("/w"))), ["gnome-terminal", "--working-directory=/w"]);
+    }
+
+    #[test]
+    fn default_is_never_empty() {
+        assert!(!terminal_argv(&[], Path::new("/w")).is_empty());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_default_opens_terminal_app() {
+        assert_eq!(s(&terminal_argv(&[], Path::new("/w"))), ["open", "-a", "Terminal", "/w"]);
     }
 }

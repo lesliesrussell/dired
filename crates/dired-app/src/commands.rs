@@ -69,6 +69,8 @@ impl App {
             "dired-visit" => self.visit_at_point(),
             // dired-0cz
             "dired-open-with" => self.open_with_at_point(),
+            // dired-z5y
+            "dired-open-terminal" | "dired-shell-here" => self.terminal_here(def.name == "dired-shell-here"),
             // dired-vhh
             "dired-copy-name" => self.copy_operands(false),
             "dired-copy-path" => self.copy_operands(true),
@@ -891,6 +893,19 @@ impl App {
             (0, _) => {}
             (1, [p]) => self.message(format!("Opened {} with {how}", p.display())),
             _ => self.message(format!("Opened {} files with {}", paths.len(), entry.name)),
+        }
+    }
+
+    // dired-z5y
+    /// A terminal in the directory of the active buffer: a new window, or with
+    /// `in_place` a shell that takes over this terminal until it exits.
+    fn terminal_here(&mut self, in_place: bool) {
+        let Some(dir) = self.dir().map(|d| d.root.clone()) else { return };
+        let outcome = if in_place { self.svc.opener.open_shell(&dir) } else { self.svc.opener.open_terminal(&dir) };
+        match outcome {
+            Ok(OpenOutcome::Detached(how)) => self.message(format!("Opened {how} in {}", dir.display())),
+            Ok(OpenOutcome::Foreground(spec)) => self.effects.push(Effect::Foreground(spec)),
+            Err(e) => self.error(e),
         }
     }
 
