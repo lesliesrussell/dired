@@ -129,8 +129,8 @@ const DEFAULTS: &[(Mode, &str, &str)] = &[
     (Mode::Global, "C-x r m", "dired-bookmark-set"),
     (Mode::Global, "C-x r d", "dired-bookmark-delete"),
     // dired-z5y
-    (Mode::Dired, "C-c t", "dired-open-terminal"),
-    (Mode::Dired, "C-c s", "dired-shell-here"),
+    (Mode::Dired, "C-c &", "dired-open-terminal"),
+    (Mode::Dired, "C-c !", "dired-shell-here"),
     // dired-vhh
     (Mode::Dired, "w", "dired-copy-name"),
     (Mode::Dired, "W", "dired-copy-path"),

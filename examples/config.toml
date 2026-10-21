@@ -195,10 +195,10 @@ terminal = true
 [git]
 enabled = true
 
-# ── Terminal (C-c t) ─────────────────────────────────────────────────────────
+# ── Terminal (C-c &) ─────────────────────────────────────────────────────────
 # "Open terminal here": argv for a new terminal window; {dir} is the buffer's
 # directory and the program starts there too. Empty = Terminal.app on macOS,
-# else $TERMINAL or x-terminal-emulator. (C-c s runs $SHELL in place instead.)
+# else $TERMINAL or x-terminal-emulator. (C-c ! runs $SHELL in place instead.)
 [terminal]
 command = []
 # command = ["open", "-a", "iTerm", "{dir}"]

@@ -1,5 +1,5 @@
 // dired-z5y
-//! "Open terminal here" (`C-c t`) and "shell here" (`C-c s`).
+//! "Open terminal here" (`C-c &`) and "shell here" (`C-c !`).
 
 mod common;
 
@@ -23,7 +23,7 @@ async fn new_terminal_opens_in_the_buffers_directory() {
     let mut h = fixture();
     h.app.open_dir("/w/sub");
     h.settle().await;
-    h.press("C-c t");
+    h.press("C-c &");
     assert_eq!(*h.opener.terminals.lock().unwrap(), [PathBuf::from("/w/sub")]);
     assert!(h.echo().contains("/w/sub"), "{}", h.echo());
 }
@@ -34,7 +34,7 @@ async fn new_terminal_uses_the_directory_not_the_file_at_point() {
     h.app.open_dir("/w");
     h.settle().await;
     h.goto("a.txt");
-    h.press("C-c t");
+    h.press("C-c &");
     assert_eq!(*h.opener.terminals.lock().unwrap(), [PathBuf::from("/w")]);
 }
 
@@ -43,7 +43,7 @@ async fn shell_here_suspends_the_ui_in_the_directory() {
     let mut h = fixture();
     h.app.open_dir("/w");
     h.settle().await;
-    h.press("C-c s");
+    h.press("C-c !");
     let effects = h.app.take_effects();
     let [Effect::Foreground(spec)] = effects.as_slice() else { panic!("{effects:?}") };
     assert_eq!(spec.cwd, PathBuf::from("/w"));
@@ -69,7 +69,7 @@ async fn launch_failure_is_reported_not_fatal() {
     h.app.open_dir("/w");
     h.settle().await;
     *h.opener.terminal_error.lock().unwrap() = Some("cannot run kitty: not found".into());
-    h.press("C-c t");
+    h.press("C-c &");
     assert_eq!(h.echo(), "cannot run kitty: not found");
 }
 
@@ -83,4 +83,24 @@ async fn buffers_without_a_directory_say_so() {
     h.answer("dired-open-terminal");
     assert!(h.opener.terminals.lock().unwrap().is_empty());
     assert_eq!(h.echo(), "dired-open-terminal needs a directory buffer");
+}
+
+// dired-zgv
+#[tokio::test]
+async fn the_example_config_does_not_shadow_the_terminal_keys() {
+    let (config, diags) = dired_config::Config::parse(include_str!("../../../examples/config.toml"), "example");
+    let fs = Arc::new(MockFs::new());
+    fs.mkdir_p("/w");
+    let trash = Arc::new(MockTrash::with_fs(fs.clone()));
+    let mut h = harness_with(fs, trash, config, diags);
+    h.app.open_dir("/w");
+    h.settle().await;
+    h.press("C-c !");
+    assert!(matches!(h.app.take_effects().as_slice(), [Effect::Foreground(_)]));
+    h.press("C-c &");
+    assert_eq!(h.opener.terminals.lock().unwrap().len(), 1);
+    // The sort keys the example config documents stay sort keys.
+    h.press("C-c s");
+    h.press("C-c t");
+    assert_eq!(h.opener.terminals.lock().unwrap().len(), 1);
 }
