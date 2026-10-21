@@ -241,7 +241,7 @@ command = ["open", "-a", "iTerm", "{dir}"]      # macOS
 # command = ["kitty", "--directory", "{dir}"]   # anywhere
 ```
 
-`C-c !` does not open a window: it suspends dired and runs `$SHELL` (else `/bin/sh`) right in the terminal you are using, so it also works over ssh. Type `exit` to come back; the listing is refreshed.
+`C-c !` does not open a window: it suspends dired and runs `$SHELL` (else `/bin/sh`) as a login shell (`-l`, so your profile is read) right in the terminal you are using, so it also works over ssh. Type `exit` to come back; the listing is refreshed.
 
 **`g` (refresh)** re-reads the directory in the background. Point stays on the same *file*, even if new files now appear above it. Marks and flags on files that still exist are kept.
 

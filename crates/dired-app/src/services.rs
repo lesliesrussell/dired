@@ -72,6 +72,14 @@ pub fn terminal_argv(configured: &[String], dir: &Path) -> Vec<OsString> {
         .collect()
 }
 
+// dired-px8
+/// The program and arguments for "shell here": `shell` (normally `$SHELL`,
+/// else `/bin/sh`) as a login shell, so it reads the user's profile.
+pub fn shell_argv(shell: Option<OsString>) -> (OsString, Vec<OsString>) {
+    let shell = shell.filter(|s| !s.is_empty()).unwrap_or_else(|| "/bin/sh".into());
+    (shell, vec!["-l".into()])
+}
+
 // dired-0cz
 /// Built-in "open with" candidates, offered after the configured ones:
 /// the platform opener and, when set, `$VISUAL`/`$EDITOR`.
@@ -252,8 +260,9 @@ impl Opener for SystemOpener {
 
     // dired-z5y
     fn open_shell(&self, dir: &Path) -> Result<OpenOutcome, String> {
-        let shell = std::env::var_os("SHELL").filter(|s| !s.is_empty()).unwrap_or_else(|| "/bin/sh".into());
-        Ok(OpenOutcome::Foreground(ProcessSpec::new(shell, vec![], dir.to_path_buf())))
+        // dired-px8
+        let (shell, args) = shell_argv(std::env::var_os("SHELL"));
+        Ok(OpenOutcome::Foreground(ProcessSpec::new(shell, args, dir.to_path_buf())))
     }
 }
 
@@ -437,6 +446,19 @@ mod terminal_tests {
     #[test]
     fn default_is_never_empty() {
         assert!(!terminal_argv(&[], Path::new("/w")).is_empty());
+    }
+
+    // dired-px8
+    #[test]
+    fn shell_is_a_login_shell() {
+        assert_eq!(shell_argv(Some("/bin/zsh".into())), ("/bin/zsh".into(), vec![OsString::from("-l")]));
+    }
+
+    // dired-px8
+    #[test]
+    fn shell_falls_back_to_sh_when_unset_or_empty() {
+        assert_eq!(shell_argv(None).0, OsString::from("/bin/sh"));
+        assert_eq!(shell_argv(Some("".into())).0, OsString::from("/bin/sh"));
     }
 
     #[cfg(target_os = "macos")]
