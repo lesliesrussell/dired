@@ -242,6 +242,18 @@ Suspend the interface and run
 in the directory of the buffer
 .Pq Ic dired\-shell\-here .
 Exit the shell to return.
+.It Cm C\-c G
+Suspend the interface and run a git program, by default
+.Xr lazygit 1 ,
+in the directory of the buffer
+.Pq Ic dired\-git\-ui .
+Quit it to return; the listing and the git column are refreshed.
+Inside a directory that git reports no repository for, the
+echo area says so instead.
+The program comes from
+.Cm [git] ;
+see
+.Sx CONFIGURATION .
 .It Cm J
 Pick a bookmark or a frequently used directory and open it
 .Pq Ic jump\-to\-directory .
@@ -1118,6 +1130,13 @@ ask git for status in the background (default true).
 Git runs with
 .Ev GIT_OPTIONAL_LOCKS Ns =0
 and is abandoned after 10 seconds.
+.Cm ui :
+argument vector of the program
+.Ic dired\-git\-ui
+runs (default
+.Ql lazygit ) ,
+for example
+.Ql ["gitui"] .
 .It Cm [terminal]
 .Cm command :
 argument vector that opens a terminal window for

@@ -80,6 +80,16 @@ pub fn shell_argv(shell: Option<OsString>) -> (OsString, Vec<OsString>) {
     (shell, vec!["-l".into()])
 }
 
+// dired-6ul
+/// The program and arguments for "git UI here": `configured` (`[git] ui`),
+/// else `lazygit`.
+pub fn git_ui_argv(configured: &[String]) -> (OsString, Vec<OsString>) {
+    match configured.split_first() {
+        Some((prog, rest)) => (prog.into(), rest.iter().map(OsString::from).collect()),
+        None => ("lazygit".into(), Vec::new()),
+    }
+}
+
 // dired-0cz
 /// Built-in "open with" candidates, offered after the configured ones:
 /// the platform opener and, when set, `$VISUAL`/`$EDITOR`.
@@ -449,6 +459,14 @@ mod terminal_tests {
     }
 
     // dired-px8
+    // dired-6ul
+    #[test]
+    fn git_ui_is_lazygit_unless_configured() {
+        assert_eq!(git_ui_argv(&[]), ("lazygit".into(), vec![]));
+        let cfg = ["tig".to_string(), "status".to_string()];
+        assert_eq!(git_ui_argv(&cfg), ("tig".into(), vec![OsString::from("status")]));
+    }
+
     #[test]
     fn shell_is_a_login_shell() {
         assert_eq!(shell_argv(Some("/bin/zsh".into())), ("/bin/zsh".into(), vec![OsString::from("-l")]));

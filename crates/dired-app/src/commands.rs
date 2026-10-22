@@ -10,6 +10,7 @@ use dired_domain::journal::{undo_steps, JournalEntry};
 use dired_domain::plan::{build_rename_plan, ItemOutcome, OpKind, OpPlan, OpResult, PlanItem, RenameRequest, Resolution, ResolutionKind};
 use dired_domain::shell::{build_invocations, operand_arg, Invocation};
 use dired_domain::{EntryState, SortKey};
+use dired_process::ProcessSpec;
 
 use crate::app::{expand_path, App};
 use crate::buffers::{BufferId, BufferKind, LineStyle, PreviewPhase, ProcState, Target, TextLine, TextRole};
@@ -17,7 +18,7 @@ use crate::dirbuf::Wdired;
 use crate::keymap::Mode;
 use crate::minibuffer::PromptAction;
 use crate::registry;
-use crate::services::{Effect, OpenOutcome, OpenRequest};
+use crate::services::{git_ui_argv, Effect, OpenOutcome, OpenRequest};
 use crate::tasks;
 
 /// Name of the buffer that `split-window-to-file-view` fills.
@@ -71,6 +72,8 @@ impl App {
             "dired-open-with" => self.open_with_at_point(),
             // dired-z5y
             "dired-open-terminal" | "dired-shell-here" => self.terminal_here(def.name == "dired-shell-here"),
+            // dired-6ul
+            "dired-git-ui" => self.git_ui_here(),
             // dired-vhh
             "dired-copy-name" => self.copy_operands(false),
             "dired-copy-path" => self.copy_operands(true),
@@ -907,6 +910,20 @@ impl App {
             Ok(OpenOutcome::Foreground(spec)) => self.effects.push(Effect::Foreground(spec)),
             Err(e) => self.error(e),
         }
+    }
+
+    // dired-6ul
+    /// Suspend dired and run the git program (lazygit unless `[git] ui` says
+    /// otherwise) in the active directory. When git state is on and git found
+    /// no repository here there is nothing for it to show, so say so instead.
+    fn git_ui_here(&mut self) {
+        let Some(d) = self.dir() else { return };
+        let (dir, in_repo) = (d.root.clone(), d.git.is_some());
+        if self.config.git.enabled && !in_repo {
+            return self.error("Not in a git repository");
+        }
+        let (program, args) = git_ui_argv(&self.config.git.ui);
+        self.effects.push(Effect::Foreground(ProcessSpec::new(program, args, dir)));
     }
 
     pub(crate) fn visit_file(&mut self, path: &Path, line: Option<u64>) {

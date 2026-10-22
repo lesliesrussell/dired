@@ -116,6 +116,13 @@ A directory summarizes what is inside it: `src/` shows ` M` if any file below it
 
 dired asks git in the background each time a listing finishes (opening, `g`, after an operation), so the column appears a moment after the files; a slow `git` never delays the screen, and after 10 seconds dired gives up and shows nothing. It runs `git status` limited to the directory you are in, with `GIT_OPTIONAL_LOCKS=0` so it never interferes with your own git commands. Outside a repository, or if `git` is not installed, there is simply no column. Remove `"git"` from `[display] columns`, or set `[git] enabled = false`, to turn it off.
 
+**Git UI (`C-c G`).** For anything beyond looking (staging, committing, diffs, logs, branches, pushing), `C-c G` suspends dired and runs [lazygit](https://github.com/jesseduffield/lazygit) in the directory you are in; quit it and you are back in dired with the listing and the git column refreshed. Inside a directory that is not in a repository, dired says so instead of starting it (unless `[git] enabled = false`, in which case dired cannot tell and just runs the program). To use another program, give its argv:
+
+```toml
+[git]
+ui = ["gitui"]          # default: lazygit
+```
+
 After the name comes a **type indicator**:
 
 | Indicator | Meaning |
@@ -179,6 +186,7 @@ Search ignores case unless you type an uppercase letter ("smart case"). If nothi
 | `O` | **Open with…**: pick a program for the marked files, else the file at point (see below) |
 | `C-c &` | **Open terminal here**: a new terminal window in this directory (see below) |
 | `C-c !` | **Shell here**: suspend dired and run `$SHELL` in this directory; `exit` returns |
+| `C-c G` | **Git UI here**: suspend dired and run [lazygit](https://github.com/jesseduffield/lazygit) in this repository; quit it to return (see Git state) |
 | `o` | Open the directory at point in the **other window** (section 17); files open as with `RET` |
 | `C-x d` | Ask for a directory path and open it |
 | `C-x C-f` | Ask for any path: directories open in dired, files are visited |
@@ -661,6 +669,7 @@ As in Emacs, the screen can be divided into **windows**, each showing a buffer. 
 | `o` | `dired-find-file-other-window` | In a directory buffer: open the directory at point (or `..`) in the other window |
 | `C-c &` | `dired-open-terminal` | Open a new terminal window in this directory |
 | `C-c !` | `dired-shell-here` | Suspend dired and run `$SHELL` in this directory |
+| `C-c G` | `dired-git-ui` | Suspend dired and run lazygit (or `[git] ui`) in this directory's repository |
 | `v` | `split-window-to-file-view` | In a directory buffer: show the file at point in a read-only view window (below) |
 | `C-M-v` / `C-M-b` | `scroll-other-window` / `scroll-other-window-down` | Scroll the other window forward / back one page without leaving this one |
 

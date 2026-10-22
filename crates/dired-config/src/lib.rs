@@ -281,11 +281,15 @@ pub struct GitConfig {
     /// Show git state (status column, branch in the mode line). Costs one
     /// `git` process per directory refresh.
     pub enabled: bool,
+    // dired-6ul
+    /// argv of the git program `C-c G` runs in the terminal (the UI is
+    /// suspended), for example `["gitui"]`. Empty means `lazygit`.
+    pub ui: Vec<String>,
 }
 
 impl Default for GitConfig {
     fn default() -> Self {
-        GitConfig { enabled: true }
+        GitConfig { enabled: true, ui: Vec::new() }
     }
 }
 
@@ -549,6 +553,19 @@ mod tests {
         let (c, d) = Config::parse(include_str!("../../../examples/config.toml"), "examples/config.toml");
         assert!(d.is_empty(), "{d:?}");
         assert!(!c.keymap.is_empty() && !c.theme.styles.is_empty());
+    }
+
+    // dired-6ul
+    #[test]
+    fn git_ui_defaults_to_lazygit_and_parses() {
+        let (c, d) = Config::parse("version = 1\n", "t");
+        assert!(d.is_empty() && c.git.ui.is_empty(), "{d:?}");
+        let (c, d) = Config::parse("version = 1\n[git]\nui = [\"gitui\"]\n", "t");
+        assert!(d.is_empty(), "{d:?}");
+        assert_eq!(c.git.ui, ["gitui"]);
+        let (c, d) = Config::parse("version = 1\n[git]\nui = 3\n", "t");
+        assert!(c.git.ui.is_empty());
+        assert_eq!(d.len(), 1, "{d:?}");
     }
 
     // dired-z5y

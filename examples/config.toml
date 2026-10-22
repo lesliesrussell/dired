@@ -194,6 +194,8 @@ terminal = true
 # `git status` in the current directory (never blocks; abandoned after 10s).
 [git]
 enabled = true
+# C-c G suspends dired and runs this program in the current directory.
+# ui = ["gitui"]                 # default: lazygit
 
 # ── Terminal (C-c &) ─────────────────────────────────────────────────────────
 # "Open terminal here": argv for a new terminal window; {dir} is the buffer's
