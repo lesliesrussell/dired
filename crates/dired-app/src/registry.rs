@@ -35,6 +35,7 @@ cmds! {
     "dired-open-with" [] "Choose a program (configured [[open_with]] or built-in) to open the entry at point.";
     "dired-open-terminal" [] "Open a new terminal window in this directory.";
     "dired-shell-here" [] "Suspend dired and run $SHELL in this directory; exit the shell to return.";
+    "dired-quit-here" [] "Quit dired and leave the shell in this directory (needs --cwd-file or $DIRED_CWD_FILE).";
     "dired-git-ui" [] "Suspend dired and run lazygit (or [git] ui) in this directory's repository; quit it to return.";
     "dired-copy-name" [] "Copy the file names of the marked entries (else the entry at point) to the clipboard.";
     "dired-copy-path" [] "Copy the full paths of the marked entries (else the entry at point) to the clipboard.";

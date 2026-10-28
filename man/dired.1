@@ -57,6 +57,17 @@ or programs execute.
 .It Fl \-check\-config
 Load the configuration file, print every problem found, and exit.
 The exit status is 0 if the configuration is clean, 1 otherwise.
+.It Fl \-cwd\-file Ar FILE
+When
+.Ic dired\-quit\-here
+.Pq Cm C\-c q
+quits, write the directory of the active buffer to
+.Ar FILE
+so that a shell function can
+.Ic cd
+there.
+Defaults to
+.Ev DIRED_CWD_FILE .
 .It Fl h , Fl \-help
 Print a usage summary and exit.
 .It Fl V , Fl \-version
@@ -242,6 +253,14 @@ Suspend the interface and run
 in the directory of the buffer
 .Pq Ic dired\-shell\-here .
 Exit the shell to return.
+.It Cm C\-c q
+Quit and leave the shell in the directory of the buffer
+.Pq Ic dired\-quit\-here .
+Requires
+.Fl \-cwd\-file
+(or
+.Ev DIRED_CWD_FILE ) ;
+otherwise the echo area says so and dired keeps running.
 .It Cm C\-c G
 Suspend the interface and run a git program, by default
 .Xr lazygit 1 ,
@@ -1182,6 +1201,9 @@ Path of the configuration file.
 Base configuration directory when
 .Ev DIRED_CONFIG
 is unset.
+.It Ev DIRED_CWD_FILE
+Same as
+.Fl \-cwd\-file .
 .It Ev DIRED_STATE_DIR
 Directory for history, the journal, and diagnostics.
 .It Ev VISUAL , Ev EDITOR

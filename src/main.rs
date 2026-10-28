@@ -18,10 +18,13 @@ Open PATH (default: the current directory) in a Dired-style directory buffer.
 
 options:
   --check-config   validate the configuration file and exit
+  --cwd-file FILE  on C-c q (quit here), write the directory to FILE so a shell
+                   wrapper can cd to it (default: $DIRED_CWD_FILE)
   -h, --help       show this help (inside dired, press ? for key bindings)
   -V, --version    show version
 
 environment:
+  DIRED_CWD_FILE   same as --cwd-file
   DIRED_CONFIG     configuration file (default: $XDG_CONFIG_HOME/dired/config.toml)
   DIRED_STATE_DIR  history, journal, and diagnostics directory
   NO_COLOR         use the monochrome theme";
@@ -31,8 +34,20 @@ fn main() -> ExitCode {
     dired_domain::init_local_offset();
     let mut path: Option<PathBuf> = None;
     let mut check = false;
-    for arg in std::env::args_os().skip(1) {
+    // dired-9q8
+    let mut cwd_file: Option<PathBuf> = std::env::var_os("DIRED_CWD_FILE").filter(|v| !v.is_empty()).map(PathBuf::from);
+    let mut args = std::env::args_os().skip(1);
+    while let Some(arg) = args.next() {
         match arg.to_str() {
+            // dired-9q8
+            Some("--cwd-file") => match args.next() {
+                Some(f) => cwd_file = Some(PathBuf::from(f)),
+                None => {
+                    eprintln!("dired: --cwd-file needs a FILE\n\n{USAGE}");
+                    return ExitCode::from(2);
+                }
+            },
+            Some(s) if s.starts_with("--cwd-file=") => cwd_file = Some(PathBuf::from(&s["--cwd-file=".len()..])),
             Some("-h") | Some("--help") => {
                 println!("{USAGE}");
                 return ExitCode::SUCCESS;
@@ -78,6 +93,7 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+    let handoff = cwd_file.is_some(); // dired-9q8
     let result = rt.block_on(async move {
         let svc = Services {
             git: Arc::new(dired_app::SystemGit::default()), // dired-99k
@@ -89,12 +105,22 @@ fn main() -> ExitCode {
             state_dir: dired_config::state_dir(),
         };
         let mut app = App::new(config, diags, svc);
+        app.set_cwd_handoff(handoff); // dired-9q8
         app.open_path(&target, false);
         dired_tui::run(app).await
     });
     rt.shutdown_timeout(std::time::Duration::from_millis(200));
     match result {
-        Ok(()) => ExitCode::SUCCESS,
+        Ok(dir) => {
+            // dired-9q8
+            if let (Some(dir), Some(file)) = (dir, cwd_file) {
+                if let Err(e) = std::fs::write(&file, dir.as_os_str().as_encoded_bytes()) {
+                    eprintln!("dired: cannot write {}: {e}", file.display());
+                    return ExitCode::FAILURE;
+                }
+            }
+            ExitCode::SUCCESS
+        }
         Err(e) => {
             eprintln!("dired: {e}");
             ExitCode::FAILURE

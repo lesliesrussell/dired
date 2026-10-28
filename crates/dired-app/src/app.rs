@@ -108,6 +108,10 @@ pub struct App {
     /// Rows a directory buffer's header takes.
     pub(crate) dir_header_rows: usize,
     pub(crate) quit: bool,
+    // dired-9q8
+    /// Directory to hand the shell on exit, and whether the launcher can take it.
+    pub(crate) exit_dir: Option<PathBuf>,
+    pub(crate) cwd_handoff: bool,
     pub(crate) effects: Vec<Effect>,
     next_op: u64,
     pub(crate) pending_operands: Vec<(PathBuf, Option<PathBuf>)>,
@@ -151,6 +155,8 @@ impl App {
             border_rows: 0,
             dir_header_rows: 1,
             quit: false,
+            exit_dir: None,
+            cwd_handoff: false,
             effects: Vec::new(),
             next_op: 1,
             pending_operands: Vec::new(),
@@ -175,6 +181,18 @@ impl App {
 
     pub fn should_quit(&self) -> bool {
         self.quit
+    }
+
+    // dired-9q8
+    /// Tell the app the launcher will pass `exit_dir` on to the shell (`--cwd-file`).
+    pub fn set_cwd_handoff(&mut self, on: bool) {
+        self.cwd_handoff = on;
+    }
+
+    // dired-9q8
+    /// The directory `dired-quit-here` asked the shell to land in, if it was used.
+    pub fn exit_dir(&self) -> Option<&Path> {
+        self.exit_dir.as_deref()
     }
 
     pub fn take_effects(&mut self) -> Vec<Effect> {

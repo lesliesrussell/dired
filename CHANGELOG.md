@@ -8,6 +8,7 @@ came from.
 ## [Unreleased]
 
 ### Added
+- Quit into the current directory (dired-9q8): `C-c q` (`dired-quit-here`) exits dired and, when started with `--cwd-file FILE` (or `$DIRED_CWD_FILE`), writes the directory you were viewing to FILE so a shell function can `cd` there. See the README for the wrapper.
 - Git UI from a directory buffer (dired-6ul): `C-c G` (`dired-git-ui`) suspends dired and runs lazygit in the repository you are in, then refreshes the listing and the git column. `[git] ui = ["gitui"]` picks another program.
 - Open a terminal from a directory buffer (dired-z5y): `C-c &` opens a new terminal window there (configurable with `[terminal] command`, `{dir}` is the directory), and `C-c !` suspends dired and runs `$SHELL` in place.
 

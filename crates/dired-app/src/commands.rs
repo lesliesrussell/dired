@@ -249,6 +249,8 @@ impl App {
                 }
             }
             "save-buffers-kill-terminal" => self.quit = true,
+            // dired-9q8
+            "dired-quit-here" => self.quit_here(),
             "dired-reload-config" => self.reload_config(),
             // dired-ta2
             "split-window-below" | "split-window-right" => {
@@ -910,6 +912,19 @@ impl App {
             Ok(OpenOutcome::Foreground(spec)) => self.effects.push(Effect::Foreground(spec)),
             Err(e) => self.error(e),
         }
+    }
+
+    // dired-9q8
+    /// Quit, leaving the active directory for the launching shell to `cd` into.
+    fn quit_here(&mut self) {
+        if !self.cwd_handoff {
+            return self.error("Cannot change the shell's directory: start dired with --cwd-file (see README)");
+        }
+        let Some(root) = self.current_dir_root() else {
+            return self.error("Not in a directory buffer");
+        };
+        self.exit_dir = Some(root);
+        self.quit = true;
     }
 
     // dired-6ul

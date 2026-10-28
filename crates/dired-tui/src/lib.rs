@@ -133,8 +133,9 @@ fn run_foreground(
     })
 }
 
-/// Run the UI until the app quits.
-pub async fn run(mut app: App) -> io::Result<()> {
+// dired-9q8
+/// Run the UI until the app quits; returns the directory `dired-quit-here` chose, if any.
+pub async fn run(mut app: App) -> io::Result<Option<std::path::PathBuf>> {
     let _guard = TerminalGuard::enter()?;
     let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
     let mut theme = Theme::from_config(&app.config.theme);
@@ -205,7 +206,7 @@ pub async fn run(mut app: App) -> io::Result<()> {
         }
     }
     stop.store(true, Ordering::Relaxed);
-    Ok(())
+    Ok(app.exit_dir().map(|p| p.to_path_buf())) // dired-9q8
 }
 
 #[cfg(test)]

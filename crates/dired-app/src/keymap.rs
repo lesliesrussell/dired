@@ -132,6 +132,7 @@ const DEFAULTS: &[(Mode, &str, &str)] = &[
     (Mode::Dired, "C-c &", "dired-open-terminal"),
     (Mode::Dired, "C-c !", "dired-shell-here"),
     (Mode::Dired, "C-c G", "dired-git-ui"), // dired-6ul
+    (Mode::Dired, "C-c q", "dired-quit-here"), // dired-9q8
     // dired-vhh
     (Mode::Dired, "w", "dired-copy-name"),
     (Mode::Dired, "W", "dired-copy-path"),
