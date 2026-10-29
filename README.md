@@ -10,19 +10,23 @@ A terminal file manager that works like Emacs Dired. Each directory is shown as 
 
 You don't need to know Emacs to use it. This README explains everything from scratch!
 
-**Requirements:** a Rust toolchain ([rustup](https://rustup.rs)) to build, on Linux or macOS. [ripgrep](https://github.com/BurntSushi/ripgrep) is optional (content search with `A`).
+**Requirements:** a Rust toolchain ([rustup](https://rustup.rs)) and [Just](https://github.com/casey/just) to build, on Linux or macOS. [ripgrep](https://github.com/BurntSushi/ripgrep) is optional (content search with `A`).
 
 ```sh
 git clone https://github.com/lesliesrussell/dired && cd dired
-make install                    # build and install to /usr/local/bin/dired
-make install PREFIX=~/.local    # or install somewhere you own (no sudo)
+just install                    # build and install to ~/.local/bin/dired (no sudo)
+just PREFIX=/path/to/prefix install # optionally choose another installation prefix
 dired                           # open the current directory
 dired ~/Downloads               # open a specific directory
 dired ~/notes/todo.md           # open its directory with point on that file
 dired --check-config            # validate your config file and exit
 ```
 
-Inside dired, press `?` for a list of every key and command, and `C-x C-c` to quit (`C-c q` quits *into* the directory you are viewing; see below). After `make install`, `man dired` shows the full manual (the source is [`man/dired.1`](man/dired.1); preview it without installing using `man ./man/dired.1`).
+Run `just check` for tests, Clippy, and man-page linting, or `just run --check-config` to build and validate configuration. Install paths accept Just overrides before the recipe, such as `just PREFIX=~/.local install`; `PREFIX` defaults to `~/.local`. `BINDIR`, `DATADIR`, `MANDIR`, `DESTDIR`, and `CARGO` can also be set as overrides or environment variables. Use `DESTDIR` to stage an installation, and `just uninstall` with the same path settings to remove it.
+
+If `~/.local/bin` is not on your `PATH`, add `export PATH="$HOME/.local/bin:$PATH"` to your shell startup file (for example, `~/.zshrc`). If your system does not discover the local manual, open it with `man ~/.local/share/man/man1/dired.1`. For a system-wide install, use `sudo just PREFIX=/usr/local install`.
+
+Inside dired, press `?` for a list of every key and command, and `C-x C-c` to quit (`C-c q` quits *into* the directory you are viewing; see below). After `just install`, `man dired` shows the full manual (the source is [`man/dired.1`](man/dired.1); preview it without installing using `man ./man/dired.1`).
 
 ---
 
@@ -931,7 +935,7 @@ You can bind any of these to keys in your config (next section).
 
 `$XDG_CONFIG_HOME/dired/config.toml` (or `~/.config/dired/config.toml`, or `$DIRED_CONFIG`). Errors never stop the app; they are listed in the `*Diagnostics*` buffer, and `dired --check-config` reports them without starting the UI.
 
-**[`examples/config.toml`](examples/config.toml)** is a fully commented tour of every option: themes, per-role styles, glyphs, key bindings to commands and external programs, openers, search, and safety. `make release` copies it to `target/release/examples/`, and `make install` installs it to `$(PREFIX)/share/dired/examples/`.
+**[`examples/config.toml`](examples/config.toml)** is a fully commented tour of every option: themes, per-role styles, glyphs, key bindings to commands and external programs, openers, search, and safety. `just release` copies it to `target/release/examples/`, and `just install` installs it to `$PREFIX/share/dired/examples/`.
 
 ```sh
 cp examples/config.toml ~/.config/dired/config.toml

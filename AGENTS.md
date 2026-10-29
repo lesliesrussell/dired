@@ -129,16 +129,16 @@ bd prime                # Refresh Beads context
 ## Build & Test
 
 ```bash
-make check                      # what CI runs: tests + clippy -D warnings + man page lint
+just check                      # what CI runs: tests + clippy -D warnings + man page lint
 cargo test --workspace --locked # ~270 tests, about 12 s (one timing test lives in tests/gates.rs)
 cargo clippy --workspace --all-targets --locked -- -D warnings
-make run ARGS="--check-config"  # release build; --check-config validates the config and exits
-make install PREFIX=~/.local    # binary, man page (man/dired.1), examples/config.toml
+just run --check-config         # release build; --check-config validates the config and exits
+just install                   # user-local binary, man page, and examples (no sudo)
 ```
 
 - CI builds on Ubuntu and macOS and runs `cargo deny` and a RustSec audit. **Windows is not supported and not planned** (a decision, not an oversight): Unix-only APIs are fine.
 - `Cargo.lock` is committed and CI uses `--locked`; after changing dependencies run a plain `cargo build` once and commit the lock file.
-- The man page is mdoc; lint it with `make man-lint` (mandoc or groff).
+- The man page is mdoc; lint it with `just man-lint` (mandoc or groff).
 
 ## Architecture Overview
 

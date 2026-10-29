@@ -12,10 +12,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-      - run: cargo test --workspace --locked
-      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
-      # dired-ji3
-      - run: make man-lint
+      # dired-ie4
+      - uses: extractions/setup-just@v3
+      - run: just check
   audit:
     runs-on: ubuntu-latest
     steps:
